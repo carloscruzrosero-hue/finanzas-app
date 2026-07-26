@@ -43,6 +43,7 @@ router.get("/:id", async (req, res, next) => {
 });
 
 const crearTransaccionSchema = z.object({
+  nombre: z.string().min(1),
   tipo: z.enum(TIPOS_CATEGORIA),
   categoriaId: z.number().int(),
   cuentaId: z.number().int(),
@@ -77,6 +78,7 @@ router.post("/", async (req, res, next) => {
 // resetearía silenciosamente una transacción CONFIRMADA a PENDIENTE en cualquier PUT
 // que no incluya "estado" explícitamente.
 const actualizarTransaccionSchema = z.object({
+  nombre: z.string().min(1).optional(),
   tipo: z.enum(TIPOS_CATEGORIA).optional(),
   categoriaId: z.number().int().optional(),
   cuentaId: z.number().int().optional(),

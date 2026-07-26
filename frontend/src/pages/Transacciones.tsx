@@ -6,7 +6,16 @@ import type { CategoriaGasto, Cuenta, Transaccion, TipoCategoria } from "../type
 import { fechaInputAIso, formatoFecha, formatoMoneda } from "../utils/formato";
 
 const hoy = new Date().toISOString().substring(0, 10);
-const FORM_VACIO = { tipo: "GASTO" as TipoCategoria, categoriaId: "", cuentaId: "", valor: "", fecha: hoy, descripcion: "", estado: "CONFIRMADA" };
+const FORM_VACIO = {
+  nombre: "",
+  tipo: "GASTO" as TipoCategoria,
+  categoriaId: "",
+  cuentaId: "",
+  valor: "",
+  fecha: hoy,
+  descripcion: "",
+  estado: "CONFIRMADA",
+};
 
 export default function Transacciones() {
   const [transacciones, setTransacciones] = useState<Transaccion[]>([]);
@@ -35,7 +44,11 @@ export default function Transacciones() {
     api.get("/cuentas").then((res) => setCuentas(res.data));
   }, []);
 
-  const categoriasDelTipo = categorias.filter((c) => c.tipo === form.tipo);
+  // Agrupa por categoría principal, mostrando sus subcategorías dentro de cada grupo
+  // (y la categoría principal también como opción, para quien no quiera un detalle tan fino).
+  const gruposDelTipo = categorias
+    .filter((c) => !c.categoriaPadreId && c.tipo === form.tipo)
+    .map((raiz) => ({ raiz, subcategorias: categorias.filter((c) => c.categoriaPadreId === raiz.id) }));
 
   async function guardar(e: FormEvent) {
     e.preventDefault();
@@ -47,6 +60,7 @@ export default function Transacciones() {
     }
     try {
       await api.post("/transacciones", {
+        nombre: form.nombre,
         tipo: form.tipo,
         categoriaId: Number(form.categoriaId),
         cuentaId: Number(form.cuentaId),
@@ -74,7 +88,7 @@ export default function Transacciones() {
   }
 
   async function eliminar(t: Transaccion) {
-    if (!window.confirm(`¿Eliminar la transacción "${t.descripcion || t.categoria?.nombre}"?`)) return;
+    if (!window.confirm(`¿Eliminar la transacción "${t.nombre}"?`)) return;
     try {
       await api.delete(`/transacciones/${t.id}`);
       cargar();
@@ -98,6 +112,15 @@ export default function Transacciones() {
       {mostrarForm && (
         <form onSubmit={guardar} className="card">
           <div className="form-grid">
+            <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <label>Nombre del gasto/ingreso</label>
+              <input
+                required
+                placeholder="Ej: Supermercado Corabastos, Sueldo julio, Cine con amigos..."
+                value={form.nombre}
+                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              />
+            </div>
             <div className="field">
               <label>Tipo</label>
               <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoCategoria, categoriaId: "" })}>
@@ -109,10 +132,15 @@ export default function Transacciones() {
               <label>Categoría</label>
               <select required value={form.categoriaId} onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}>
                 <option value="">Selecciona...</option>
-                {categoriasDelTipo.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nombre}
-                  </option>
+                {gruposDelTipo.map(({ raiz, subcategorias }) => (
+                  <optgroup key={raiz.id} label={raiz.nombre}>
+                    <option value={raiz.id}>{raiz.nombre} (general)</option>
+                    {subcategorias.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -143,7 +171,7 @@ export default function Transacciones() {
               </select>
             </div>
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label>Descripción (opcional)</label>
+              <label>Notas adicionales (opcional)</label>
               <input value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
             </div>
             <div className="field">
@@ -173,9 +201,9 @@ export default function Transacciones() {
           <thead>
             <tr>
               <th>Fecha</th>
+              <th>Nombre</th>
               <th>Categoría</th>
               <th>Cuenta</th>
-              <th>Descripción</th>
               <th>Valor</th>
               <th>Estado</th>
               <th></th>
@@ -192,9 +220,12 @@ export default function Transacciones() {
             {transacciones.map((t) => (
               <tr key={t.id}>
                 <td>{formatoFecha(t.fecha)}</td>
+                <td>
+                  {t.nombre}
+                  {t.descripcion && <span className="text-muted" style={{ display: "block", fontSize: "0.78rem" }}>{t.descripcion}</span>}
+                </td>
                 <td>{t.categoria?.nombre}</td>
                 <td>{t.cuenta?.nombre}</td>
-                <td>{t.descripcion || <span className="text-muted">—</span>}</td>
                 <td style={{ fontWeight: 700, color: t.tipo === "INGRESO" ? "#16a34a" : "#dc2626" }}>
                   {t.tipo === "INGRESO" ? "+" : "-"}
                   {formatoMoneda(t.valor)}

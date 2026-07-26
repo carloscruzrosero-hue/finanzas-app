@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, mensajeError } from "../services/api";
 import { Alerta } from "../components/Alerta";
 import type { CategoriaGasto, TipoCategoria } from "../types";
 
-const FORM_VACIO = { nombre: "", tipo: "GASTO" as TipoCategoria, color: "" };
+const FORM_VACIO = { nombre: "", tipo: "GASTO" as TipoCategoria, color: "", categoriaPadreId: "" };
 
 export default function Categorias() {
   const [categorias, setCategorias] = useState<CategoriaGasto[]>([]);
@@ -23,9 +23,12 @@ export default function Categorias() {
 
   useEffect(cargar, []);
 
+  const raiz = categorias.filter((c) => !c.categoriaPadreId);
+  const raizDelTipo = raiz.filter((c) => c.tipo === form.tipo && c.id !== editandoId);
+
   function editar(c: CategoriaGasto) {
     setEditandoId(c.id);
-    setForm({ nombre: c.nombre, tipo: c.tipo, color: c.color ?? "" });
+    setForm({ nombre: c.nombre, tipo: c.tipo, color: c.color ?? "", categoriaPadreId: c.categoriaPadreId ? String(c.categoriaPadreId) : "" });
     setMostrarForm(true);
   }
 
@@ -39,7 +42,12 @@ export default function Categorias() {
     e.preventDefault();
     setError("");
     setExito("");
-    const payload = { nombre: form.nombre, tipo: form.tipo, color: form.color || undefined };
+    const payload = {
+      nombre: form.nombre,
+      tipo: form.tipo,
+      color: form.color || undefined,
+      categoriaPadreId: form.categoriaPadreId ? Number(form.categoriaPadreId) : null,
+    };
     try {
       if (editandoId) {
         await api.put(`/categorias/${editandoId}`, payload);
@@ -65,6 +73,33 @@ export default function Categorias() {
     }
   }
 
+  function fila(c: CategoriaGasto, esSub: boolean) {
+    return (
+      <tr key={c.id}>
+        <td style={esSub ? { paddingLeft: 32, color: "#475569" } : { fontWeight: 700 }}>
+          {esSub && "↳ "}
+          {c.color && !esSub && (
+            <span
+              style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: c.color, marginRight: 8 }}
+            />
+          )}
+          {c.nombre}
+        </td>
+        <td>
+          <span className={`badge ${c.tipo === "INGRESO" ? "badge-green" : "badge-red"}`}>{c.tipo}</span>
+        </td>
+        <td className="gap-sm">
+          <button className="btn btn-secondary" onClick={() => editar(c)}>
+            Editar
+          </button>
+          <button className="btn btn-danger" onClick={() => eliminar(c)}>
+            Eliminar
+          </button>
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <div>
       <div className="flex-between">
@@ -86,9 +121,23 @@ export default function Categorias() {
             </div>
             <div className="field">
               <label>Tipo</label>
-              <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoCategoria })}>
+              <select
+                value={form.tipo}
+                onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoCategoria, categoriaPadreId: "" })}
+              >
                 <option value="GASTO">Gasto</option>
                 <option value="INGRESO">Ingreso</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Categoría padre (opcional)</label>
+              <select value={form.categoriaPadreId} onChange={(e) => setForm({ ...form, categoriaPadreId: e.target.value })}>
+                <option value="">Ninguna (categoría principal)</option>
+                {raizDelTipo.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="field">
@@ -114,42 +163,18 @@ export default function Categorias() {
             </tr>
           </thead>
           <tbody>
-            {categorias.length === 0 && (
+            {raiz.length === 0 && (
               <tr>
                 <td colSpan={3} className="text-muted" style={{ textAlign: "center", padding: 24 }}>
                   No hay categorías registradas todavía.
                 </td>
               </tr>
             )}
-            {categorias.map((c) => (
-              <tr key={c.id}>
-                <td>
-                  {c.color && (
-                    <span
-                      style={{
-                        display: "inline-block",
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        background: c.color,
-                        marginRight: 8,
-                      }}
-                    />
-                  )}
-                  {c.nombre}
-                </td>
-                <td>
-                  <span className={`badge ${c.tipo === "INGRESO" ? "badge-green" : "badge-red"}`}>{c.tipo}</span>
-                </td>
-                <td className="gap-sm">
-                  <button className="btn btn-secondary" onClick={() => editar(c)}>
-                    Editar
-                  </button>
-                  <button className="btn btn-danger" onClick={() => eliminar(c)}>
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
+            {raiz.map((c) => (
+              <Fragment key={c.id}>
+                {fila(c, false)}
+                {(c.subcategorias ?? []).map((s) => fila(s, true))}
+              </Fragment>
             ))}
           </tbody>
         </table>

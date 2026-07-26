@@ -119,12 +119,13 @@ router.post("/:id/ejecutar", async (req, res, next) => {
     const transaccion = await prisma.$transaction(async (tx) => {
       const creada = await tx.transaccion.create({
         data: {
+          nombre: programada.nombre,
           tipo: programada.categoria.tipo,
           categoriaId: programada.categoriaId,
           cuentaId: programada.cuentaId,
           valor: programada.valor,
           fecha,
-          descripcion: programada.nombre,
+          descripcion: "Generada al ejecutar una transacción programada.",
           mes,
           anio,
           estado: "CONFIRMADA",

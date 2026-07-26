@@ -141,12 +141,13 @@ router.post("/generar", async (req, res, next) => {
         const fecha = new Date(anio, mes - 1, diasDePago[i]);
         const creada = await prisma.transaccion.create({
           data: {
+            nombre: orden.nombre,
             tipo: orden.categoria.tipo,
             categoriaId: orden.categoriaId,
             cuentaId: orden.cuentaId,
             valor: orden.valor,
             fecha,
-            descripcion: `${orden.nombre} (orden permanente)`,
+            descripcion: "Generada automáticamente por orden permanente.",
             mes,
             anio,
             estado: "PENDIENTE",

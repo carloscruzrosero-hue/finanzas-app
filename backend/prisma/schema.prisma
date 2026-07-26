@@ -28,17 +28,23 @@ model Cuenta {
   @@map("cuentas")
 }
 
+// Soporta un nivel de subcategoría (ej. "Alimentación" -> "Supermercado") vía
+// categoriaPadreId auto-referenciado. Una categoría raíz tiene categoriaPadreId = null.
 model CategoriaGasto {
-  id     Int     @id @default(autoincrement())
-  nombre String
-  tipo   String // GASTO | INGRESO
-  color  String?
-  icono  String?
+  id               Int             @id @default(autoincrement())
+  nombre           String
+  tipo             String // GASTO | INGRESO
+  color            String?
+  icono            String?
+  categoriaPadreId Int?
+  categoriaPadre   CategoriaGasto? @relation("Subcategorias", fields: [categoriaPadreId], references: [id], onDelete: Cascade)
+  subcategorias    CategoriaGasto[] @relation("Subcategorias")
 
   transacciones            Transaccion[]
   ordenesPermanentes       OrdenPermanente[]
   transaccionesProgramadas TransaccionProgramada[]
 
+  @@index([categoriaPadreId])
   @@map("categorias_gasto")
 }
 
@@ -47,6 +53,7 @@ model CategoriaGasto {
 // el usuario decide imputar un movimiento a otro periodo.
 model Transaccion {
   id          Int      @id @default(autoincrement())
+  nombre      String // nombre del gasto/ingreso, para identificarlo en los listados
   tipo        String // GASTO | INGRESO
   categoriaId Int
   categoria   CategoriaGasto @relation(fields: [categoriaId], references: [id])

@@ -33,10 +33,14 @@ export interface CategoriaGasto {
   tipo: TipoCategoria;
   color?: string | null;
   icono?: string | null;
+  categoriaPadreId?: number | null;
+  categoriaPadre?: CategoriaGasto | null;
+  subcategorias?: CategoriaGasto[];
 }
 
 export interface Transaccion {
   id: number;
+  nombre: string;
   tipo: TipoCategoria;
   categoriaId: number;
   categoria?: CategoriaGasto;
