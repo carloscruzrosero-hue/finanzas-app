@@ -3,7 +3,6 @@ export type TipoCategoria = "GASTO" | "INGRESO";
 export type EstadoTransaccion = "PENDIENTE" | "CONFIRMADA";
 export type FrecuenciaOrden = "MENSUAL" | "QUINCENAL" | "ANUAL";
 export type EstadoProgramada = "PENDIENTE" | "EJECUTADA" | "CANCELADA";
-export type EstadoCierre = "ABIERTO" | "CERRADO";
 
 export const TIPOS_CUENTA_LABEL: Record<TipoCuenta, string> = {
   EFECTIVO: "Efectivo",
@@ -83,26 +82,31 @@ export interface TransaccionProgramada {
   estado: EstadoProgramada;
 }
 
-export interface CierreMensual {
-  id: number;
+export interface ResumenMensual {
   mes: number;
   anio: number;
   totalIngresos: number;
   totalGastos: number;
   saldoNeto: number;
-  fechaCierre?: string | null;
-  estado: EstadoCierre;
+}
+
+export interface ResumenOrdenMes {
+  id: number;
+  nombre: string;
+  valor: number;
+  frecuencia: FrecuenciaOrden;
+  categoria?: CategoriaGasto;
+  cuenta?: Cuenta;
+  generada: boolean;
 }
 
 export interface DashboardData {
   periodo: { mes: number; anio: number };
   saldoTotal: number;
-  cuentas: Cuenta[];
   ingresosMes: number;
   gastosMes: number;
   saldoNetoMes: number;
   pendientesMes: number;
-  cierreMesActual: CierreMensual | null;
+  resumenOrdenesMes: ResumenOrdenMes[];
   proximasTransaccionesProgramadas: TransaccionProgramada[];
-  ordenesPermanentesActivas: OrdenPermanente[];
 }

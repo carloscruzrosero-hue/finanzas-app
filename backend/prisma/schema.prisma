@@ -48,8 +48,8 @@ model CategoriaGasto {
   @@map("categorias_gasto")
 }
 
-// El par (mes, anio) es el mes contable al que pertenece la transacción para efectos
-// del cierre mensual; no necesariamente coincide con el mes calendario de "fecha" si
+// El par (mes, anio) es el mes contable al que pertenece la transacción para los
+// reportes mensuales; no necesariamente coincide con el mes calendario de "fecha" si
 // el usuario decide imputar un movimiento a otro periodo.
 model Transaccion {
   id          Int      @id @default(autoincrement())
@@ -129,20 +129,4 @@ model TransaccionProgramada {
   @@index([cuentaId])
   @@index([categoriaId])
   @@map("transacciones_programadas")
-}
-
-model CierreMensual {
-  id            Int       @id @default(autoincrement())
-  mes           Int
-  anio          Int
-  totalIngresos Float     @default(0)
-  totalGastos   Float     @default(0)
-  saldoNeto     Float     @default(0)
-  fechaCierre   DateTime?
-  estado        String    @default("ABIERTO") // ABIERTO | CERRADO
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@unique([mes, anio])
-  @@map("cierres_mensuales")
 }

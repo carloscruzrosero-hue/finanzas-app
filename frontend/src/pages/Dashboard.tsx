@@ -45,34 +45,40 @@ export default function Dashboard() {
           <p className="label">Movimientos pendientes</p>
           <p className="valor">{datos.pendientesMes}</p>
         </div>
-        <div className="stat-card">
-          <p className="label">Cierre del mes</p>
-          <p className="valor" style={{ fontSize: "1.1rem" }}>
-            {datos.cierreMesActual ? <span className="badge badge-green">Cerrado</span> : <span className="badge badge-amber">Abierto</span>}
-          </p>
-        </div>
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Cuentas</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Tipo</th>
-              <th>Saldo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {datos.cuentas.map((c) => (
-              <tr key={c.id}>
-                <td>{c.nombre}</td>
-                <td>{c.tipo}</td>
-                <td style={{ fontWeight: 700 }}>{formatoMoneda(c.saldoActual, c.moneda)}</td>
+        <h3 style={{ marginTop: 0 }}>Órdenes permanentes del mes</h3>
+        {datos.resumenOrdenesMes.length === 0 ? (
+          <p className="text-muted">No hay órdenes permanentes vigentes este mes.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Cuenta</th>
+                <th>Frecuencia</th>
+                <th>Valor</th>
+                <th>Estado del mes</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {datos.resumenOrdenesMes.map((o) => (
+                <tr key={o.id}>
+                  <td>{o.nombre}</td>
+                  <td>{o.categoria?.nombre}</td>
+                  <td>{o.cuenta?.nombre}</td>
+                  <td>{o.frecuencia}</td>
+                  <td>{formatoMoneda(o.valor)}</td>
+                  <td>
+                    {o.generada ? <span className="badge badge-green">Generada</span> : <span className="badge badge-amber">Pendiente</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="card">
@@ -96,36 +102,6 @@ export default function Dashboard() {
                   <td>{p.categoria?.nombre}</td>
                   <td>{formatoFecha(p.fechaProgramada)}</td>
                   <td>{formatoMoneda(p.valor)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Órdenes permanentes activas</h3>
-        {datos.ordenesPermanentesActivas.length === 0 ? (
-          <p className="text-muted">No hay órdenes permanentes activas.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Categoría</th>
-                <th>Día de pago</th>
-                <th>Frecuencia</th>
-                <th>Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {datos.ordenesPermanentesActivas.map((o) => (
-                <tr key={o.id}>
-                  <td>{o.nombre}</td>
-                  <td>{o.categoria?.nombre}</td>
-                  <td>{o.diaCobroPago}</td>
-                  <td>{o.frecuencia}</td>
-                  <td>{formatoMoneda(o.valor)}</td>
                 </tr>
               ))}
             </tbody>

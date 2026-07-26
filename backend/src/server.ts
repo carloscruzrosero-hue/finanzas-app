@@ -7,7 +7,7 @@ import categoriasRoutes from "./routes/categorias.routes";
 import transaccionesRoutes from "./routes/transacciones.routes";
 import ordenesPermanentesRoutes from "./routes/ordenesPermanentes.routes";
 import transaccionesProgramadasRoutes from "./routes/transaccionesProgramadas.routes";
-import cierresMensualesRoutes from "./routes/cierresMensuales.routes";
+import reportesRoutes from "./routes/reportes.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 
 const app = express();
@@ -25,7 +25,7 @@ app.use("/api/categorias", categoriasRoutes);
 app.use("/api/transacciones", transaccionesRoutes);
 app.use("/api/ordenes-permanentes", ordenesPermanentesRoutes);
 app.use("/api/transacciones-programadas", transaccionesProgramadasRoutes);
-app.use("/api/cierres-mensuales", cierresMensualesRoutes);
+app.use("/api/reportes", reportesRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
 app.use(errorHandler);

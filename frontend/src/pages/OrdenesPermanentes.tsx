@@ -4,7 +4,7 @@ import { api, mensajeError } from "../services/api";
 import { Alerta } from "../components/Alerta";
 import { FRECUENCIA_LABEL } from "../types";
 import type { CategoriaGasto, Cuenta, FrecuenciaOrden, OrdenPermanente } from "../types";
-import { fechaInputAIso, formatoFecha, formatoMoneda } from "../utils/formato";
+import { fechaInputAIso, formatoFecha, formatoMoneda, nombreMes } from "../utils/formato";
 
 const hoy = new Date().toISOString().substring(0, 10);
 const FORM_VACIO = {
@@ -50,7 +50,7 @@ export default function OrdenesPermanentes() {
       return;
     }
     try {
-      await api.post("/ordenes-permanentes", {
+      const res = await api.post("/ordenes-permanentes", {
         nombre: form.nombre,
         categoriaId: Number(form.categoriaId),
         cuentaId: Number(form.cuentaId),
@@ -60,10 +60,39 @@ export default function OrdenesPermanentes() {
         fechaInicio: fechaInputAIso(form.fechaInicio),
         fechaFin: form.fechaFin ? fechaInputAIso(form.fechaFin) : null,
       });
+      const nuevaOrden = res.data;
       setExito("Orden permanente creada.");
       setForm({ ...FORM_VACIO, fechaInicio: hoy });
       setMostrarForm(false);
       cargar();
+
+      // Si la orden arranca en un mes ya pasado, esos meses no se generan solos —
+      // se le pregunta al usuario si quiere generar ahora ese historial retroactivo.
+      const inicio = new Date(`${form.fechaInicio}T12:00:00`);
+      const ahora = new Date();
+      const esMesPasado = inicio.getFullYear() < ahora.getFullYear() || (inicio.getFullYear() === ahora.getFullYear() && inicio.getMonth() < ahora.getMonth());
+      if (esMesPasado) {
+        const confirmarBackfill = window.confirm(
+          `"${nuevaOrden.nombre}" inicia en ${nombreMes(inicio.getMonth() + 1)} ${inicio.getFullYear()}, un mes ya pasado.\n\n` +
+            `¿Quieres generar ahora las transacciones pendientes de todos los meses transcurridos desde entonces hasta hoy?`
+        );
+        if (confirmarBackfill) {
+          setGenerando(true);
+          try {
+            const r = await api.post("/ordenes-permanentes/generar", {
+              ordenId: nuevaOrden.id,
+              mes: inicio.getMonth() + 1,
+              anio: inicio.getFullYear(),
+              hasta: { mes: ahora.getMonth() + 1, anio: ahora.getFullYear() },
+            });
+            setExito(`Orden creada. Se generaron ${r.data.generadas} transacción(es) retroactivas de meses pasados.`);
+          } catch (err) {
+            setError(mensajeError(err));
+          } finally {
+            setGenerando(false);
+          }
+        }
+      }
     } catch (err) {
       setError(mensajeError(err));
     }

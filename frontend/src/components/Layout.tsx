@@ -5,7 +5,7 @@ const ITEMS = [
   { to: "/transacciones", label: "Transacciones" },
   { to: "/ordenes-permanentes", label: "Órdenes permanentes" },
   { to: "/transacciones-programadas", label: "Programadas" },
-  { to: "/cierres-mensuales", label: "Cierres mensuales" },
+  { to: "/reportes", label: "Reportes" },
   { to: "/cuentas", label: "Cuentas" },
   { to: "/categorias", label: "Categorías" },
 ];

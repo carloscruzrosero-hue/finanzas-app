@@ -6,7 +6,7 @@ import Categorias from "./pages/Categorias";
 import Transacciones from "./pages/Transacciones";
 import OrdenesPermanentes from "./pages/OrdenesPermanentes";
 import TransaccionesProgramadas from "./pages/TransaccionesProgramadas";
-import CierresMensuales from "./pages/CierresMensuales";
+import Reportes from "./pages/Reportes";
 
 export default function App() {
   return (
@@ -19,7 +19,7 @@ export default function App() {
           <Route path="/transacciones" element={<Transacciones />} />
           <Route path="/ordenes-permanentes" element={<OrdenesPermanentes />} />
           <Route path="/transacciones-programadas" element={<TransaccionesProgramadas />} />
-          <Route path="/cierres-mensuales" element={<CierresMensuales />} />
+          <Route path="/reportes" element={<Reportes />} />
         </Route>
       </Routes>
     </BrowserRouter>

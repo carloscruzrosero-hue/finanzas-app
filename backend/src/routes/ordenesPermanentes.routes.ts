@@ -101,61 +101,86 @@ router.delete("/:id", async (req, res, next) => {
 const generarSchema = z.object({
   mes: z.number().int().min(1).max(12).optional(),
   anio: z.number().int().optional(),
+  // Si se indica, genera para todo el rango [mes/anio, hasta] en vez de un solo mes —
+  // usado para el "backfill" cuando una orden permanente arranca en un mes ya pasado.
+  hasta: z.object({ mes: z.number().int().min(1).max(12), anio: z.number().int() }).optional(),
+  ordenId: z.number().int().optional(),
 });
 
-// Replica las órdenes permanentes activas y vigentes en el periodo indicado (por
-// defecto el mes en curso) como transacciones PENDIENTE, evitando duplicar si ya se
-// generaron para ese mismo periodo. Se guarda de forma idempotente: se puede volver a
-// llamar sin riesgo de duplicar movimientos ya generados.
+// Replica las órdenes permanentes activas y vigentes en el periodo indicado como
+// transacciones PENDIENTE, evitando duplicar si ya se generaron para ese mismo periodo.
+// Es idempotente: se puede volver a llamar sin riesgo de duplicar movimientos ya
+// generados.
+async function generarPeriodo(mes: number, anio: number, ordenId?: number) {
+  const inicioPeriodo = new Date(anio, mes - 1, 1);
+  const finPeriodo = new Date(anio, mes, 0, 23, 59, 59);
+
+  const ordenes = await prisma.ordenPermanente.findMany({
+    where: {
+      id: ordenId,
+      activa: true,
+      fechaInicio: { lte: finPeriodo },
+      OR: [{ fechaFin: null }, { fechaFin: { gte: inicioPeriodo } }],
+    },
+    include: { categoria: true },
+  });
+
+  const generadas = [];
+  for (const orden of ordenes) {
+    if (orden.frecuencia === "ANUAL" && orden.fechaInicio.getMonth() + 1 !== mes) continue;
+
+    const yaGeneradas = await prisma.transaccion.count({ where: { ordenPermanenteId: orden.id, mes, anio } });
+    const vecesEsperadas = orden.frecuencia === "QUINCENAL" ? 2 : 1;
+    if (yaGeneradas >= vecesEsperadas) continue;
+
+    const ultimoDia = diasDelMes(mes, anio);
+    const diasDePago = [Math.min(orden.diaCobroPago, ultimoDia)];
+    if (orden.frecuencia === "QUINCENAL") {
+      diasDePago.push(Math.min(orden.diaCobroPago + 15, ultimoDia));
+    }
+
+    for (let i = yaGeneradas; i < diasDePago.length; i++) {
+      const fecha = new Date(anio, mes - 1, diasDePago[i]);
+      const creada = await prisma.transaccion.create({
+        data: {
+          nombre: orden.nombre,
+          tipo: orden.categoria.tipo,
+          categoriaId: orden.categoriaId,
+          cuentaId: orden.cuentaId,
+          valor: orden.valor,
+          fecha,
+          descripcion: "Generada automáticamente por orden permanente.",
+          mes,
+          anio,
+          estado: "PENDIENTE",
+          ordenPermanenteId: orden.id,
+        },
+      });
+      generadas.push(creada);
+    }
+  }
+  return generadas;
+}
+
 router.post("/generar", async (req, res, next) => {
   try {
-    const { mes: mesBody, anio: anioBody } = generarSchema.parse(req.body ?? {});
-    const { mes, anio } = mesBody && anioBody ? { mes: mesBody, anio: anioBody } : mesActual();
-    const inicioPeriodo = new Date(anio, mes - 1, 1);
-    const finPeriodo = new Date(anio, mes, 0, 23, 59, 59);
+    const { mes: mesBody, anio: anioBody, hasta, ordenId } = generarSchema.parse(req.body ?? {});
+    const inicio = mesBody && anioBody ? { mes: mesBody, anio: anioBody } : mesActual();
 
-    const ordenes = await prisma.ordenPermanente.findMany({
-      where: {
-        activa: true,
-        fechaInicio: { lte: finPeriodo },
-        OR: [{ fechaFin: null }, { fechaFin: { gte: inicioPeriodo } }],
-      },
-      include: { categoria: true },
-    });
-
-    const generadas = [];
-    for (const orden of ordenes) {
-      if (orden.frecuencia === "ANUAL" && orden.fechaInicio.getMonth() + 1 !== mes) continue;
-
-      const yaGeneradas = await prisma.transaccion.count({ where: { ordenPermanenteId: orden.id, mes, anio } });
-      const vecesEsperadas = orden.frecuencia === "QUINCENAL" ? 2 : 1;
-      if (yaGeneradas >= vecesEsperadas) continue;
-
-      const ultimoDia = diasDelMes(mes, anio);
-      const diasDePago = [Math.min(orden.diaCobroPago, ultimoDia)];
-      if (orden.frecuencia === "QUINCENAL") {
-        diasDePago.push(Math.min(orden.diaCobroPago + 15, ultimoDia));
+    const periodos: { mes: number; anio: number }[] = [inicio];
+    if (hasta) {
+      let cursor = new Date(inicio.anio, inicio.mes - 1, 1);
+      const limite = new Date(hasta.anio, hasta.mes - 1, 1);
+      periodos.length = 0;
+      while (cursor <= limite) {
+        periodos.push({ mes: cursor.getMonth() + 1, anio: cursor.getFullYear() });
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
       }
+    }
 
-      for (let i = yaGeneradas; i < diasDePago.length; i++) {
-        const fecha = new Date(anio, mes - 1, diasDePago[i]);
-        const creada = await prisma.transaccion.create({
-          data: {
-            nombre: orden.nombre,
-            tipo: orden.categoria.tipo,
-            categoriaId: orden.categoriaId,
-            cuentaId: orden.cuentaId,
-            valor: orden.valor,
-            fecha,
-            descripcion: "Generada automáticamente por orden permanente.",
-            mes,
-            anio,
-            estado: "PENDIENTE",
-            ordenPermanenteId: orden.id,
-          },
-        });
-        generadas.push(creada);
-      }
+    let generadas: Awaited<ReturnType<typeof generarPeriodo>> = [];
+    for (const p of periodos) {
+      generadas = generadas.concat(await generarPeriodo(p.mes, p.anio, ordenId));
     }
 
     res.json({ generadas: generadas.length, transacciones: generadas });
