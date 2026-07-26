@@ -1,0 +1,6 @@
+node_modules
+dist
+
+# Variables de entorno (mantener .env.example versionado como plantilla)
+.env
+!.env.example

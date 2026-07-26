@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Los campos de tipo/estado se modelan como String (no enum nativo de Prisma) y se
+// validan en la capa de la API (Zod) contra las listas de valores permitidos
+// documentadas en cada campo — arrancó así cuando la base era SQLite (que no soporta
+// enums) y se mantiene igual al pasar a PostgreSQL por simplicidad y consistencia.
+
+model Cuenta {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  tipo        String // EFECTIVO | BANCO | TARJETA_CREDITO
+  saldoActual Float    @default(0)
+  moneda      String   @default("USD")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transacciones            Transaccion[]
+  ordenesPermanentes       OrdenPermanente[]
+  transaccionesProgramadas TransaccionProgramada[]
+
+  @@map("cuentas")
+}
+
+model CategoriaGasto {
+  id     Int     @id @default(autoincrement())
+  nombre String
+  tipo   String // GASTO | INGRESO
+  color  String?
+  icono  String?
+
+  transacciones            Transaccion[]
+  ordenesPermanentes       OrdenPermanente[]
+  transaccionesProgramadas TransaccionProgramada[]
+
+  @@map("categorias_gasto")
+}
+
+// El par (mes, anio) es el mes contable al que pertenece la transacción para efectos
+// del cierre mensual; no necesariamente coincide con el mes calendario de "fecha" si
+// el usuario decide imputar un movimiento a otro periodo.
+model Transaccion {
+  id          Int      @id @default(autoincrement())
+  tipo        String // GASTO | INGRESO
+  categoriaId Int
+  categoria   CategoriaGasto @relation(fields: [categoriaId], references: [id])
+  cuentaId    Int
+  cuenta      Cuenta   @relation(fields: [cuentaId], references: [id])
+  valor       Float
+  fecha       DateTime
+  descripcion String?
+  mes         Int
+  anio        Int
+  estado      String   @default("PENDIENTE") // PENDIENTE | CONFIRMADA
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Trazabilidad de origen: si esta transacción fue generada automáticamente por una
+  // orden permanente (replicación mensual/quincenal/anual) o al ejecutar una
+  // transacción programada, en vez de haberse creado manualmente. Sirve además para
+  // no duplicar la generación de un mismo periodo.
+  ordenPermanenteId       Int?
+  ordenPermanente         OrdenPermanente?        @relation(fields: [ordenPermanenteId], references: [id])
+  transaccionProgramadaId Int?                     @unique
+  transaccionProgramada   TransaccionProgramada?   @relation(fields: [transaccionProgramadaId], references: [id])
+
+  @@index([mes, anio])
+  @@index([cuentaId])
+  @@index([categoriaId])
+  @@index([ordenPermanenteId])
+  @@map("transacciones")
+}
+
+// Representa pagos/cobros fijos recurrentes (arriendo, suscripciones, nómina, etc.)
+// que se replican automáticamente cada periodo mientras estén activos.
+model OrdenPermanente {
+  id           Int      @id @default(autoincrement())
+  nombre       String
+  categoriaId  Int
+  categoria    CategoriaGasto @relation(fields: [categoriaId], references: [id])
+  cuentaId     Int
+  cuenta       Cuenta   @relation(fields: [cuentaId], references: [id])
+  valor        Float
+  diaCobroPago Int
+  frecuencia   String   @default("MENSUAL") // MENSUAL | QUINCENAL | ANUAL
+  activa       Boolean  @default(true)
+  fechaInicio  DateTime
+  fechaFin     DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  transaccionesGeneradas Transaccion[]
+
+  @@index([cuentaId])
+  @@index([categoriaId])
+  @@map("ordenes_permanentes")
+}
+
+// Movimientos puntuales a futuro que aún no han ocurrido (a diferencia de
+// OrdenPermanente, que es recurrente).
+model TransaccionProgramada {
+  id              Int      @id @default(autoincrement())
+  nombre          String
+  categoriaId     Int
+  categoria       CategoriaGasto @relation(fields: [categoriaId], references: [id])
+  cuentaId        Int
+  cuenta          Cuenta   @relation(fields: [cuentaId], references: [id])
+  valor           Float
+  fechaProgramada DateTime
+  estado          String   @default("PENDIENTE") // PENDIENTE | EJECUTADA | CANCELADA
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  transaccionGenerada Transaccion?
+
+  @@index([cuentaId])
+  @@index([categoriaId])
+  @@map("transacciones_programadas")
+}
+
+model CierreMensual {
+  id            Int       @id @default(autoincrement())
+  mes           Int
+  anio          Int
+  totalIngresos Float     @default(0)
+  totalGastos   Float     @default(0)
+  saldoNeto     Float     @default(0)
+  fechaCierre   DateTime?
+  estado        String    @default("ABIERTO") // ABIERTO | CERRADO
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([mes, anio])
+  @@map("cierres_mensuales")
+}
