@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { api, mensajeError } from "../services/api";
 import { Alerta } from "../components/Alerta";
+import { GraficoEvolutivo } from "../components/GraficoEvolutivo";
 import type { ResumenMensual, Transaccion } from "../types";
 import { formatoFecha, formatoMoneda, nombreMes } from "../utils/formato";
 
@@ -141,6 +142,11 @@ export default function Reportes() {
           <p className="label">Saldo neto del rango</p>
           <p className="valor">{formatoMoneda(totalIngresos - totalGastos)}</p>
         </div>
+      </div>
+
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Evolución mensual</h3>
+        <GraficoEvolutivo datos={resumen} />
       </div>
 
       <div className="card" style={{ padding: 0 }}>

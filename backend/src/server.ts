@@ -9,6 +9,7 @@ import ordenesPermanentesRoutes from "./routes/ordenesPermanentes.routes";
 import transaccionesProgramadasRoutes from "./routes/transaccionesProgramadas.routes";
 import reportesRoutes from "./routes/reportes.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
+import { iniciarEjecucionTransaccionesProgramadas } from "./jobs/ejecutarTransaccionesProgramadas";
 
 const app = express();
 
@@ -33,4 +34,5 @@ app.use(errorHandler);
 const PORT = Number(process.env.PORT) || 4000;
 app.listen(PORT, () => {
   console.log(`API de finanzas-app escuchando en http://localhost:${PORT}`);
+  iniciarEjecucionTransaccionesProgramadas();
 });

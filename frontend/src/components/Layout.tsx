@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 const ITEMS = [
@@ -11,13 +12,30 @@ const ITEMS = [
 ];
 
 export function Layout() {
+  const [menuAbierto, setMenuAbierto] = useState(false);
+
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <h1>💰 Mis Finanzas</h1>
+      <button className="btn-menu-movil" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú">
+        ☰
+      </button>
+      {menuAbierto && <div className="overlay-movil" onClick={() => setMenuAbierto(false)} />}
+      <aside className={`sidebar ${menuAbierto ? "abierto" : ""}`}>
+        <div className="sidebar-header">
+          <h1>💰 Mis Finanzas</h1>
+          <button className="btn-cerrar-movil" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú">
+            ✕
+          </button>
+        </div>
         <nav>
           {ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => (isActive ? "active" : "")}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => (isActive ? "active" : "")}
+              onClick={() => setMenuAbierto(false)}
+            >
               {item.label}
             </NavLink>
           ))}

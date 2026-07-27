@@ -2,8 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { ESTADOS_PROGRAMADA } from "../utils/constants";
-import { ajustarSaldo, delta } from "../utils/saldo";
-import { mesAnioDe } from "../utils/fechas";
+import { ejecutarTransaccionProgramada } from "../utils/transaccionesProgramadas";
 
 const router = Router();
 
@@ -113,30 +112,7 @@ router.post("/:id/ejecutar", async (req, res, next) => {
       return res.status(409).json({ error: `Esta transacción programada ya está ${programada.estado.toLowerCase()}.` });
     }
 
-    const fecha = new Date();
-    const { mes, anio } = mesAnioDe(fecha);
-
-    const transaccion = await prisma.$transaction(async (tx) => {
-      const creada = await tx.transaccion.create({
-        data: {
-          nombre: programada.nombre,
-          tipo: programada.categoria.tipo,
-          categoriaId: programada.categoriaId,
-          cuentaId: programada.cuentaId,
-          valor: programada.valor,
-          fecha,
-          descripcion: "Generada al ejecutar una transacción programada.",
-          mes,
-          anio,
-          estado: "CONFIRMADA",
-          transaccionProgramadaId: programada.id,
-        },
-      });
-      await ajustarSaldo(tx, programada.cuentaId, delta(programada.categoria.tipo, programada.valor));
-      await tx.transaccionProgramada.update({ where: { id }, data: { estado: "EJECUTADA" } });
-      return creada;
-    });
-
+    const transaccion = await ejecutarTransaccionProgramada(programada);
     res.json(transaccion);
   } catch (err) {
     next(err);

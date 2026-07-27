@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, mensajeError } from "../services/api";
 import { Alerta } from "../components/Alerta";
-import type { DashboardData } from "../types";
+import { GraficoEvolutivo } from "../components/GraficoEvolutivo";
+import type { DashboardData, ResumenMensual } from "../types";
 import { formatoFecha, formatoMoneda, nombreMes } from "../utils/formato";
 
 export default function Dashboard() {
   const [datos, setDatos] = useState<DashboardData | null>(null);
+  const [evolucion, setEvolucion] = useState<ResumenMensual[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -13,6 +16,11 @@ export default function Dashboard() {
       .get("/dashboard")
       .then((res) => setDatos(res.data))
       .catch((err) => setError(mensajeError(err)));
+    // Sin parámetros, el backend devuelve los últimos 6 meses por defecto.
+    api
+      .get("/reportes/resumen-mensual")
+      .then((res) => setEvolucion(res.data))
+      .catch(() => {});
   }, []);
 
   if (error) return <Alerta tipo="error" mensaje={error} />;
@@ -45,6 +53,16 @@ export default function Dashboard() {
           <p className="label">Movimientos pendientes</p>
           <p className="valor">{datos.pendientesMes}</p>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="flex-between">
+          <h3 style={{ margin: 0 }}>Evolución de los últimos meses</h3>
+          <Link to="/reportes" className="btn btn-secondary">
+            Ver reportes completos
+          </Link>
+        </div>
+        <GraficoEvolutivo datos={evolucion} />
       </div>
 
       <div className="card">
