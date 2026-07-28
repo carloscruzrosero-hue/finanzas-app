@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, mensajeError } from "../services/api";
 import { Alerta } from "../components/Alerta";
+import { SelectorCategoria } from "../components/SelectorCategoria";
 import type { CategoriaGasto, Cuenta, Transaccion, TipoCategoria } from "../types";
 import { fechaInputAIso, formatoFecha, formatoMoneda } from "../utils/formato";
 
@@ -43,12 +44,6 @@ export default function Transacciones() {
     api.get("/categorias").then((res) => setCategorias(res.data));
     api.get("/cuentas").then((res) => setCuentas(res.data));
   }, []);
-
-  // Agrupa por categoría principal, mostrando sus subcategorías dentro de cada grupo
-  // (y la categoría principal también como opción, para quien no quiera un detalle tan fino).
-  const gruposDelTipo = categorias
-    .filter((c) => !c.categoriaPadreId && c.tipo === form.tipo)
-    .map((raiz) => ({ raiz, subcategorias: categorias.filter((c) => c.categoriaPadreId === raiz.id) }));
 
   async function guardar(e: FormEvent) {
     e.preventDefault();
@@ -130,19 +125,12 @@ export default function Transacciones() {
             </div>
             <div className="field">
               <label>Categoría</label>
-              <select required value={form.categoriaId} onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}>
-                <option value="">Selecciona...</option>
-                {gruposDelTipo.map(({ raiz, subcategorias }) => (
-                  <optgroup key={raiz.id} label={raiz.nombre}>
-                    <option value={raiz.id}>{raiz.nombre} (general)</option>
-                    {subcategorias.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.nombre}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+              <SelectorCategoria
+                categorias={categorias}
+                tipo={form.tipo}
+                valor={form.categoriaId}
+                onSeleccionar={(c) => setForm({ ...form, categoriaId: String(c.id) })}
+              />
             </div>
             <div className="field">
               <label>Cuenta</label>

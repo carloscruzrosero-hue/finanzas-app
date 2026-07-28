@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, mensajeError } from "../services/api";
 import { Alerta } from "../components/Alerta";
+import { SelectorCategoria } from "../components/SelectorCategoria";
 import type { CategoriaGasto, Cuenta, TransaccionProgramada } from "../types";
 import { fechaInputAIso, formatoFecha, formatoMoneda } from "../utils/formato";
 
@@ -114,14 +115,11 @@ export default function TransaccionesProgramadas() {
             </div>
             <div className="field">
               <label>Categoría</label>
-              <select required value={form.categoriaId} onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}>
-                <option value="">Selecciona...</option>
-                {categorias.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nombre} ({c.tipo})
-                  </option>
-                ))}
-              </select>
+              <SelectorCategoria
+                categorias={categorias}
+                valor={form.categoriaId}
+                onSeleccionar={(c) => setForm({ ...form, categoriaId: String(c.id) })}
+              />
             </div>
             <div className="field">
               <label>Cuenta</label>

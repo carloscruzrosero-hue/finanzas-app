@@ -298,6 +298,40 @@ tr:last-child td {
   flex-wrap: wrap;
 }
 
+.selector-buscar {
+  position: relative;
+}
+
+.selector-buscar-lista {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+}
+
+.selector-buscar-opcion {
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.selector-buscar-opcion:hover {
+  background: var(--color-bg);
+}
+
+.selector-buscar-vacio {
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
 .grafico-evolutivo {
   width: 100%;
 }
