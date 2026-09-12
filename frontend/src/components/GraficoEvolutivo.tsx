@@ -45,7 +45,7 @@ export function GraficoEvolutivo({ datos }: { datos: ResumenMensual[] }) {
                 y={baseY - escalaY(d.totalIngresos)}
                 width={anchoBarra}
                 height={escalaY(d.totalIngresos)}
-                fill="#16a34a"
+                fill="#14B8A6"
                 rx={0.5}
               >
                 <title>{`Ingresos ${nombreMes(d.mes)} ${d.anio}: ${formatoMoneda(d.totalIngresos)}`}</title>
@@ -60,12 +60,12 @@ export function GraficoEvolutivo({ datos }: { datos: ResumenMensual[] }) {
           );
         })}
 
-        <polyline points={puntosLinea} fill="none" stroke="#1d4ed8" strokeWidth={0.7} />
+        <polyline points={puntosLinea} fill="none" stroke="#0A2D4F" strokeWidth={0.7} />
         {datos.map((d, i) => {
           const x = anchoGrupo * i + anchoGrupo / 2;
           const y = baseY - (d.saldoNeto >= 0 ? escalaY(d.saldoNeto) : -escalaY(d.saldoNeto));
           return (
-            <circle key={`punto-${d.anio}-${d.mes}`} cx={x} cy={y} r={0.9} fill="#1d4ed8">
+            <circle key={`punto-${d.anio}-${d.mes}`} cx={x} cy={y} r={0.9} fill="#0A2D4F">
               <title>{`Saldo neto ${nombreMes(d.mes)} ${d.anio}: ${formatoMoneda(d.saldoNeto)}`}</title>
             </circle>
           );
@@ -73,13 +73,13 @@ export function GraficoEvolutivo({ datos }: { datos: ResumenMensual[] }) {
       </svg>
       <div className="grafico-leyenda">
         <span>
-          <i style={{ background: "#16a34a" }} /> Ingresos
+          <i style={{ background: "#14B8A6" }} /> Ingresos
         </span>
         <span>
           <i style={{ background: "#dc2626" }} /> Gastos
         </span>
         <span>
-          <i style={{ background: "#1d4ed8" }} /> Saldo neto
+          <i style={{ background: "#0A2D4F" }} /> Saldo neto
         </span>
       </div>
     </div>

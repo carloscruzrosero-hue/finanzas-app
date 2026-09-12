@@ -1,11 +1,16 @@
+/* Identidad BONDIA (ver Manual Corporativo/Manual_Corporativo_BONDIA.pdf): Azul Marino
+   como base/sidebar, Turquesa como acento principal (así se ve en el propio mockup de
+   app del manual), Gris Suave/Claro para superficies neutras. --color-danger/--color-success
+   se dejan como estaban: son semánticos (rojo/verde de estado), no colores de marca. */
 :root {
-  --color-bg: #f4f6f5;
-  --color-primary: #0f766e;
-  --color-primary-dark: #0b5a54;
-  --color-dark: #0f172a;
+  --color-bg: #f5f7fa;
+  --color-primary: #14b8a6;
+  --color-primary-dark: #0f9488;
+  --color-navy: #0a2d4f;
+  --color-gray-soft: #94a3b8;
   --color-danger: #dc2626;
   --color-success: #16a34a;
-  --color-border: #e2e8f0;
+  --color-border: #e1e6eb;
   color-scheme: light;
 }
 
@@ -21,9 +26,21 @@ body,
 
 body {
   margin: 0;
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: "Lato", "Segoe UI", system-ui, -apple-system, sans-serif;
   background: var(--color-bg);
   color: #1e293b;
+}
+
+/* Tipografía corporativa: Montserrat para títulos/interfaz destacada, Lato para texto
+   de cuerpo (ya aplicado en body arriba) — jerarquía del manual (H1/H2/H3 en Montserrat). */
+h1,
+h2,
+h3,
+.page-title,
+.sidebar-header h1,
+.stat-card .valor,
+.btn {
+  font-family: "Montserrat", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 a {
@@ -38,7 +55,7 @@ a {
 .sidebar {
   width: 230px;
   flex-shrink: 0;
-  background: var(--color-dark);
+  background: var(--color-navy);
   color: #e2e8f0;
   padding: 20px 14px;
   display: flex;
@@ -46,11 +63,29 @@ a {
   gap: 4px;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 22px 4px;
+}
+
 .sidebar h1 {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 800;
+  letter-spacing: 0.02em;
   color: #fff;
-  margin: 0 0 20px 8px;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.brand-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-primary);
 }
 
 .sidebar a {
@@ -83,7 +118,7 @@ h2.page-title {
   font-size: 1.5rem;
   font-weight: 800;
   margin: 0 0 20px;
-  color: var(--color-dark);
+  color: var(--color-navy);
 }
 
 .card {
@@ -121,7 +156,7 @@ h2.page-title {
   font-size: 1.6rem;
   font-weight: 800;
   margin-top: 4px;
-  color: var(--color-dark);
+  color: var(--color-navy);
 }
 
 .stat-card.negativo {
@@ -403,7 +438,7 @@ tr:last-child td {
     z-index: 40;
     width: 40px;
     height: 40px;
-    background: var(--color-dark);
+    background: var(--color-navy);
     color: #fff;
     border: none;
     border-radius: 8px;
