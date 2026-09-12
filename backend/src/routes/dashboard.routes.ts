@@ -11,7 +11,7 @@ router.get("/", async (_req, res, next) => {
     const inicioPeriodo = new Date(anio, mes - 1, 1);
     const finPeriodo = new Date(anio, mes, 0, 23, 59, 59);
 
-    const [cuentas, transaccionesMes, proximasProgramadas, ordenesVigentesMes] = await Promise.all([
+    const [cuentas, transaccionesMes, proximasProgramadas, ordenesVigentesMes, cuotasVencidas] = await Promise.all([
       prisma.cuenta.findMany(),
       prisma.transaccion.findMany({ where: { mes, anio, estado: "CONFIRMADA" } }),
       prisma.transaccionProgramada.findMany({
@@ -28,6 +28,13 @@ router.get("/", async (_req, res, next) => {
         },
         include: { categoria: true, cuenta: true },
         orderBy: { diaCobroPago: "asc" },
+      }),
+      // Cuotas de deudas pendientes cuyo vencimiento ya pasó — la alerta de "pagos no
+      // efectuados" del módulo de Deudas pendientes.
+      prisma.cuotaDeuda.findMany({
+        where: { estado: "PENDIENTE", fechaVencimiento: { lt: hoy } },
+        include: { deuda: { select: { id: true, deudor: true, concepto: true } } },
+        orderBy: { fechaVencimiento: "asc" },
       }),
     ]);
 
@@ -65,6 +72,15 @@ router.get("/", async (_req, res, next) => {
       pendientesMes,
       resumenOrdenesMes,
       proximasTransaccionesProgramadas: proximasProgramadas,
+      alertasDeudas: cuotasVencidas.map((c) => ({
+        cuotaId: c.id,
+        deudaId: c.deuda.id,
+        deudor: c.deuda.deudor,
+        concepto: c.deuda.concepto,
+        numero: c.numero,
+        montoPendiente: Math.round((c.montoEsperado - c.montoPagado) * 100) / 100,
+        fechaVencimiento: c.fechaVencimiento,
+      })),
     });
   } catch (err) {
     next(err);

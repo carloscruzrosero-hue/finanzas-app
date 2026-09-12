@@ -3,6 +3,9 @@ export type TipoCategoria = "GASTO" | "INGRESO";
 export type EstadoTransaccion = "PENDIENTE" | "CONFIRMADA";
 export type FrecuenciaOrden = "MENSUAL" | "QUINCENAL" | "ANUAL";
 export type EstadoProgramada = "PENDIENTE" | "EJECUTADA" | "CANCELADA";
+export type FrecuenciaDeuda = "UNICO" | "QUINCENAL" | "MENSUAL" | "ANUAL";
+export type EstadoDeuda = "ACTIVA" | "PAGADA" | "CANCELADA";
+export type EstadoCuota = "PENDIENTE" | "PAGADA";
 
 export const TIPOS_CUENTA_LABEL: Record<TipoCuenta, string> = {
   EFECTIVO: "Efectivo",
@@ -13,6 +16,13 @@ export const TIPOS_CUENTA_LABEL: Record<TipoCuenta, string> = {
 export const FRECUENCIA_LABEL: Record<FrecuenciaOrden, string> = {
   MENSUAL: "Mensual",
   QUINCENAL: "Quincenal",
+  ANUAL: "Anual",
+};
+
+export const FRECUENCIA_DEUDA_LABEL: Record<FrecuenciaDeuda, string> = {
+  UNICO: "Pago único",
+  QUINCENAL: "Quincenal",
+  MENSUAL: "Mensual",
   ANUAL: "Anual",
 };
 
@@ -82,6 +92,62 @@ export interface TransaccionProgramada {
   estado: EstadoProgramada;
 }
 
+export interface PagoDeuda {
+  id: number;
+  cuotaId: number;
+  monto: number;
+  fecha: string;
+  cuentaId?: number | null;
+  cuenta?: Cuenta | null;
+  transaccionId?: number | null;
+  observaciones?: string | null;
+}
+
+export interface CuotaDeuda {
+  id: number;
+  deudaId: number;
+  numero: number;
+  montoEsperado: number;
+  fechaVencimiento: string;
+  estado: EstadoCuota;
+  montoPagado: number;
+  fechaPago?: string | null;
+  vencida?: boolean;
+  pagos?: PagoDeuda[];
+}
+
+export interface Deuda {
+  id: number;
+  deudor: string;
+  concepto: string;
+  montoTotal: number;
+  moneda: string;
+  frecuencia: FrecuenciaDeuda;
+  numeroCuotas: number;
+  fechaInicio: string;
+  estado: EstadoDeuda;
+  observaciones?: string | null;
+  cuotas: CuotaDeuda[];
+  // Agregados calculados por el backend (ver deudas.routes.ts::conAgregados).
+  cuotasPagadas: number;
+  totalCuotas: number;
+  montoPagadoTotal: number;
+  saldoPendiente: number;
+  tieneVencidas: boolean;
+  cuotasVencidas: number;
+  proximoVencimiento?: string | null;
+}
+
+export interface AlertaDeuda {
+  cuotaId: number;
+  deudaId: number;
+  deudor: string;
+  concepto: string;
+  numero: number;
+  montoPendiente: number;
+  fechaVencimiento: string;
+}
+
 export interface ResumenMensual {
   mes: number;
   anio: number;
@@ -109,4 +175,5 @@ export interface DashboardData {
   pendientesMes: number;
   resumenOrdenesMes: ResumenOrdenMes[];
   proximasTransaccionesProgramadas: TransaccionProgramada[];
+  alertasDeudas: AlertaDeuda[];
 }

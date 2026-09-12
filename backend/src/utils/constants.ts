@@ -18,3 +18,12 @@ export type EstadoProgramada = (typeof ESTADOS_PROGRAMADA)[number];
 
 export const ESTADOS_CIERRE = ["ABIERTO", "CERRADO"] as const;
 export type EstadoCierre = (typeof ESTADOS_CIERRE)[number];
+
+export const FRECUENCIAS_DEUDA = ["UNICO", "QUINCENAL", "MENSUAL", "ANUAL"] as const;
+export type FrecuenciaDeuda = (typeof FRECUENCIAS_DEUDA)[number];
+
+export const ESTADOS_DEUDA = ["ACTIVA", "PAGADA", "CANCELADA"] as const;
+export type EstadoDeuda = (typeof ESTADOS_DEUDA)[number];
+
+export const ESTADOS_CUOTA = ["PENDIENTE", "PAGADA"] as const;
+export type EstadoCuota = (typeof ESTADOS_CUOTA)[number];

@@ -24,6 +24,7 @@ model Cuenta {
   transacciones            Transaccion[]
   ordenesPermanentes       OrdenPermanente[]
   transaccionesProgramadas TransaccionProgramada[]
+  pagosDeuda               PagoDeuda[]
 
   @@map("cuentas")
 }
@@ -77,6 +78,8 @@ model Transaccion {
   transaccionProgramadaId Int?                     @unique
   transaccionProgramada   TransaccionProgramada?   @relation(fields: [transaccionProgramadaId], references: [id])
 
+  pagoDeuda PagoDeuda?
+
   @@index([mes, anio])
   @@index([cuentaId])
   @@index([categoriaId])
@@ -129,4 +132,70 @@ model TransaccionProgramada {
   @@index([cuentaId])
   @@index([categoriaId])
   @@map("transacciones_programadas")
+}
+
+// Dinero que un tercero debe pagar (deuda a favor del dueño de la app) — no confundir
+// con OrdenPermanente/TransaccionProgramada, que son movimientos propios. Al crearse se
+// generan de una sola vez todas sus Cuota (a diferencia de OrdenPermanente, una deuda
+// tiene un número de cuotas fijo y conocido desde el inicio, no hace falta un endpoint
+// periódico de generación).
+model Deuda {
+  id            Int      @id @default(autoincrement())
+  deudor        String // quién debe el dinero
+  concepto      String
+  montoTotal    Float
+  moneda        String   @default("USD")
+  frecuencia    String   @default("MENSUAL") // UNICO | QUINCENAL | MENSUAL | ANUAL
+  numeroCuotas  Int      @default(1)
+  fechaInicio   DateTime
+  estado        String   @default("ACTIVA") // ACTIVA | PAGADA | CANCELADA
+  observaciones String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cuotas CuotaDeuda[]
+
+  @@map("deudas")
+}
+
+// "Vencida" no se guarda como estado propio: se calcula al leer (PENDIENTE +
+// fechaVencimiento pasada) para que nunca quede desactualizado sin depender de un job.
+model CuotaDeuda {
+  id               Int       @id @default(autoincrement())
+  deudaId          Int
+  deuda            Deuda     @relation(fields: [deudaId], references: [id], onDelete: Cascade)
+  numero           Int
+  montoEsperado    Float
+  fechaVencimiento DateTime
+  estado           String    @default("PENDIENTE") // PENDIENTE | PAGADA
+  montoPagado      Float     @default(0)
+  fechaPago        DateTime?
+
+  pagos PagoDeuda[]
+
+  @@unique([deudaId, numero])
+  @@index([deudaId])
+  @@map("cuotas_deuda")
+}
+
+// Cada abono/pago aplicado a una cuota (soporta pagos parciales: varios PagoDeuda pueden
+// acumularse en una misma CuotaDeuda hasta completar montoEsperado). Si viene con cuenta
+// (+ categoría, resuelta en la ruta), genera además una Transaccion real de ingreso
+// confirmada, para que el dinero cobrado se refleje en el saldo de esa cuenta igual que
+// cualquier otro movimiento de la app.
+model PagoDeuda {
+  id            Int          @id @default(autoincrement())
+  cuotaId       Int
+  cuota         CuotaDeuda   @relation(fields: [cuotaId], references: [id], onDelete: Cascade)
+  monto         Float
+  fecha         DateTime     @default(now())
+  cuentaId      Int?
+  cuenta        Cuenta?      @relation(fields: [cuentaId], references: [id])
+  transaccionId Int?         @unique
+  transaccion   Transaccion? @relation(fields: [transaccionId], references: [id])
+  observaciones String?
+  createdAt     DateTime     @default(now())
+
+  @@index([cuotaId])
+  @@map("pagos_deuda")
 }

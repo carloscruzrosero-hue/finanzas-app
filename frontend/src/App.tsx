@@ -5,6 +5,7 @@ import Cuentas from "./pages/Cuentas";
 import Categorias from "./pages/Categorias";
 import Transacciones from "./pages/Transacciones";
 import OrdenesPermanentes from "./pages/OrdenesPermanentes";
+import Deudas from "./pages/Deudas";
 import TransaccionesProgramadas from "./pages/TransaccionesProgramadas";
 import Reportes from "./pages/Reportes";
 
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/categorias" element={<Categorias />} />
           <Route path="/transacciones" element={<Transacciones />} />
           <Route path="/ordenes-permanentes" element={<OrdenesPermanentes />} />
+          <Route path="/deudas" element={<Deudas />} />
           <Route path="/transacciones-programadas" element={<TransaccionesProgramadas />} />
           <Route path="/reportes" element={<Reportes />} />
         </Route>

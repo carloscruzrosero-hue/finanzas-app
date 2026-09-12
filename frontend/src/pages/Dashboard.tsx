@@ -66,6 +66,44 @@ export default function Dashboard() {
       </div>
 
       <div className="card">
+        <h3 style={{ marginTop: 0 }}>Pagos atrasados</h3>
+        {datos.alertasDeudas.length === 0 ? (
+          <p className="text-muted">No hay cuotas de deudas vencidas sin pagar. 🎉</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Deudor</th>
+                <th>Concepto</th>
+                <th>Cuota</th>
+                <th>Monto pendiente</th>
+                <th>Venció</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {datos.alertasDeudas.map((a) => (
+                <tr key={a.cuotaId}>
+                  <td>{a.deudor}</td>
+                  <td>{a.concepto}</td>
+                  <td>#{a.numero}</td>
+                  <td style={{ fontWeight: 700 }}>{formatoMoneda(a.montoPendiente)}</td>
+                  <td>
+                    <span className="badge badge-red">{formatoFecha(a.fechaVencimiento)}</span>
+                  </td>
+                  <td>
+                    <Link to="/deudas" className="btn btn-secondary">
+                      Ver deuda
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="card">
         <h3 style={{ marginTop: 0 }}>Órdenes permanentes del mes</h3>
         {datos.resumenOrdenesMes.length === 0 ? (
           <p className="text-muted">No hay órdenes permanentes vigentes este mes.</p>
