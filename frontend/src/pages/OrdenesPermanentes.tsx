@@ -8,6 +8,15 @@ import type { CategoriaGasto, Cuenta, FrecuenciaOrden, OrdenPermanente } from ".
 import { fechaInputAIso, formatoFecha, formatoMoneda, nombreMes } from "../utils/formato";
 
 const hoy = new Date().toISOString().substring(0, 10);
+
+// Una orden "finalizada" es la que ya no debería seguir generando movimientos: se
+// desactivó manualmente, o su fecha de fin ya pasó (aunque nadie la haya desactivado a
+// mano todavía) — se calcula al vuelo, nunca se guarda, para que no quede desactualizada.
+function estaFinalizada(o: { activa: boolean; fechaFin?: string | null }): boolean {
+  if (!o.activa) return true;
+  return Boolean(o.fechaFin && new Date(o.fechaFin) < new Date());
+}
+
 const FORM_VACIO = {
   nombre: "",
   categoriaId: "",
@@ -28,6 +37,7 @@ export default function OrdenesPermanentes() {
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
   const [generando, setGenerando] = useState(false);
+  const [filtro, setFiltro] = useState<"vigentes" | "finalizadas" | "todas">("vigentes");
 
   function cargar() {
     api
@@ -136,6 +146,12 @@ export default function OrdenesPermanentes() {
     }
   }
 
+  const ordenesFiltradas = ordenes.filter((o) => {
+    if (filtro === "todas") return true;
+    const finalizada = estaFinalizada(o);
+    return filtro === "finalizadas" ? finalizada : !finalizada;
+  });
+
   return (
     <div>
       <div className="flex-between">
@@ -219,6 +235,14 @@ export default function OrdenesPermanentes() {
         </form>
       )}
 
+      <div className="card gap-sm">
+        <select value={filtro} onChange={(e) => setFiltro(e.target.value as typeof filtro)} style={{ maxWidth: 200 }}>
+          <option value="vigentes">Solo vigentes</option>
+          <option value="finalizadas">Solo finalizadas</option>
+          <option value="todas">Todas</option>
+        </select>
+      </div>
+
       <div className="card" style={{ padding: 0 }}>
         <table>
           <thead>
@@ -235,37 +259,40 @@ export default function OrdenesPermanentes() {
             </tr>
           </thead>
           <tbody>
-            {ordenes.length === 0 && (
+            {ordenesFiltradas.length === 0 && (
               <tr>
                 <td colSpan={9} className="text-muted" style={{ textAlign: "center", padding: 24 }}>
-                  No hay órdenes permanentes registradas todavía.
+                  {ordenes.length === 0 ? "No hay órdenes permanentes registradas todavía." : "No hay órdenes que coincidan con este filtro."}
                 </td>
               </tr>
             )}
-            {ordenes.map((o) => (
-              <tr key={o.id}>
-                <td>{o.nombre}</td>
-                <td>{o.categoria?.nombre}</td>
-                <td>{o.cuenta?.nombre}</td>
-                <td>{o.diaCobroPago}</td>
-                <td>{FRECUENCIA_LABEL[o.frecuencia]}</td>
-                <td style={{ fontWeight: 700 }}>{formatoMoneda(o.valor)}</td>
-                <td className="text-muted">
-                  {formatoFecha(o.fechaInicio)} {o.fechaFin ? `→ ${formatoFecha(o.fechaFin)}` : "→ indefinido"}
-                </td>
-                <td>
-                  <span className={`badge ${o.activa ? "badge-green" : "badge-gray"}`}>{o.activa ? "Activa" : "Inactiva"}</span>
-                </td>
-                <td className="gap-sm">
-                  <button className="btn btn-secondary" onClick={() => alternarActiva(o)}>
-                    {o.activa ? "Desactivar" : "Activar"}
-                  </button>
-                  <button className="btn btn-danger" onClick={() => eliminar(o)}>
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {ordenesFiltradas.map((o) => {
+              const finalizada = estaFinalizada(o);
+              return (
+                <tr key={o.id}>
+                  <td>{o.nombre}</td>
+                  <td>{o.categoria?.nombre}</td>
+                  <td>{o.cuenta?.nombre}</td>
+                  <td>{o.diaCobroPago}</td>
+                  <td>{FRECUENCIA_LABEL[o.frecuencia]}</td>
+                  <td style={{ fontWeight: 700 }}>{formatoMoneda(o.valor)}</td>
+                  <td className="text-muted">
+                    {formatoFecha(o.fechaInicio)} {o.fechaFin ? `→ ${formatoFecha(o.fechaFin)}` : "→ indefinido"}
+                  </td>
+                  <td>
+                    <span className={`badge ${finalizada ? "badge-gray" : "badge-green"}`}>{finalizada ? "Finalizada" : "Vigente"}</span>
+                  </td>
+                  <td className="gap-sm">
+                    <button className="btn btn-secondary" onClick={() => alternarActiva(o)}>
+                      {o.activa ? "Desactivar" : "Activar"}
+                    </button>
+                    <button className="btn btn-danger" onClick={() => eliminar(o)}>
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
