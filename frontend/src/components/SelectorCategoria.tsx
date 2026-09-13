@@ -45,10 +45,15 @@ export function SelectorCategoria({
 
   const opcionSeleccionada = opciones.find((o) => o.id === Number(valor));
 
-  useEffect(() => {
-    if (!abierto) setTexto(opcionSeleccionada?.etiqueta ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valor, abierto]);
+  // Sincroniza el texto visible con la opción seleccionada cuando el combobox está cerrado
+  // (selección externa, o se cerró sin elegir nada — lo que debe descartar la búsqueda sin
+  // terminar). Se ajusta durante el render en vez de en un useEffect, siguiendo el patrón
+  // recomendado por React para evitar el doble render de un setState dentro de un efecto.
+  const [ultimoSincronizado, setUltimoSincronizado] = useState({ valor, abierto });
+  if (!abierto && (ultimoSincronizado.valor !== valor || ultimoSincronizado.abierto !== abierto)) {
+    setUltimoSincronizado({ valor, abierto });
+    setTexto(opcionSeleccionada?.etiqueta ?? "");
+  }
 
   useEffect(() => {
     function onClickFuera(e: MouseEvent) {
