@@ -164,7 +164,7 @@ export default function OrdenesPermanentes() {
       const res = await api.post("/ordenes-permanentes/generar", {});
       setExito(
         res.data.generadas > 0
-          ? `Se generaron ${res.data.generadas} transacción(es) pendiente(s) para este mes.`
+          ? `Se generaron ${res.data.generadas} transacción(es) confirmada(s) para este mes.`
           : "No había movimientos nuevos por generar para este mes (ya estaban generados)."
       );
     } catch (err) {
@@ -196,7 +196,8 @@ export default function OrdenesPermanentes() {
 
       <p className="text-muted" style={{ marginTop: -12, marginBottom: 16 }}>
         Representan pagos o cobros fijos recurrentes (arriendo, suscripciones, nómina). Usa "Generar movimientos del mes" para replicarlas como
-        transacciones pendientes del periodo actual — es seguro repetirlo, no duplica lo ya generado.
+        transacciones ya confirmadas del periodo actual — es seguro repetirlo, no duplica lo ya generado. Si alguna no debía generarse, elimínala
+        desde Transacciones (revierte el saldo automáticamente).
       </p>
 
       {error && <Alerta tipo="error" mensaje={error} onClose={() => setError("")} />}
