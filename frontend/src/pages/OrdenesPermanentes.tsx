@@ -38,6 +38,7 @@ export default function OrdenesPermanentes() {
   const [exito, setExito] = useState("");
   const [generando, setGenerando] = useState(false);
   const [filtro, setFiltro] = useState<"vigentes" | "finalizadas" | "todas">("vigentes");
+  const [avisoMesPasado, setAvisoMesPasado] = useState<{ ordenId: number; nombre: string; inicio: Date } | null>(null);
 
   function cargar() {
     api
@@ -72,41 +73,68 @@ export default function OrdenesPermanentes() {
         fechaFin: form.fechaFin ? fechaInputAIso(form.fechaFin) : null,
       });
       const nuevaOrden = res.data;
-      setExito("Orden permanente creada.");
       setForm({ ...FORM_VACIO, fechaInicio: hoy });
       setMostrarForm(false);
+
+      // Antes había que acordarse de pulsar "Generar movimientos del mes" aparte — una
+      // orden creada hoy (o con fecha ya pasada) se quedaba sin su transacción del mes
+      // actual hasta que alguien lo hiciera manualmente. Ahora se genera sola de una vez
+      // (idempotente: no duplica si luego se vuelve a generar el mes).
+      const ahora = new Date();
+      const r = await api.post("/ordenes-permanentes/generar", {
+        ordenId: nuevaOrden.id,
+        mes: ahora.getMonth() + 1,
+        anio: ahora.getFullYear(),
+      });
+      setExito(
+        r.data.generadas > 0
+          ? "Orden permanente creada y se generó su transacción de este mes."
+          : "Orden permanente creada."
+      );
       cargar();
 
-      // Si la orden arranca en un mes ya pasado, esos meses no se generan solos —
-      // se le pregunta al usuario si quiere generar ahora ese historial retroactivo.
+      // Si además arranca en un mes ya pasado, esos meses anteriores no se generan
+      // solos — se le pregunta al usuario, con un aviso visible en pantalla (no un
+      // window.confirm nativo, fácil de pasar por alto), si quiere completar también
+      // ese historial retroactivo o dejarlo solo desde este mes (ya generado arriba).
       const inicio = new Date(`${form.fechaInicio}T12:00:00`);
-      const ahora = new Date();
       const esMesPasado = inicio.getFullYear() < ahora.getFullYear() || (inicio.getFullYear() === ahora.getFullYear() && inicio.getMonth() < ahora.getMonth());
       if (esMesPasado) {
-        const confirmarBackfill = window.confirm(
-          `"${nuevaOrden.nombre}" inicia en ${nombreMes(inicio.getMonth() + 1)} ${inicio.getFullYear()}, un mes ya pasado.\n\n` +
-            `¿Quieres generar ahora las transacciones pendientes de todos los meses transcurridos desde entonces hasta hoy?`
-        );
-        if (confirmarBackfill) {
-          setGenerando(true);
-          try {
-            const r = await api.post("/ordenes-permanentes/generar", {
-              ordenId: nuevaOrden.id,
-              mes: inicio.getMonth() + 1,
-              anio: inicio.getFullYear(),
-              hasta: { mes: ahora.getMonth() + 1, anio: ahora.getFullYear() },
-            });
-            setExito(`Orden creada. Se generaron ${r.data.generadas} transacción(es) retroactivas de meses pasados.`);
-          } catch (err) {
-            setError(mensajeError(err));
-          } finally {
-            setGenerando(false);
-          }
-        }
+        setAvisoMesPasado({ ordenId: nuevaOrden.id, nombre: nuevaOrden.nombre, inicio });
       }
     } catch (err) {
       setError(mensajeError(err));
     }
+  }
+
+  async function generarDesdeInicioOriginal() {
+    if (!avisoMesPasado) return;
+    const { ordenId, nombre, inicio } = avisoMesPasado;
+    const ahora = new Date();
+    setAvisoMesPasado(null);
+    setGenerando(true);
+    try {
+      const r = await api.post("/ordenes-permanentes/generar", {
+        ordenId,
+        mes: inicio.getMonth() + 1,
+        anio: inicio.getFullYear(),
+        hasta: { mes: ahora.getMonth() + 1, anio: ahora.getFullYear() },
+      });
+      setExito(`"${nombre}": se generaron ${r.data.generadas} transacción(es) desde ${nombreMes(inicio.getMonth() + 1)} ${inicio.getFullYear()} hasta hoy.`);
+      cargar();
+    } catch (err) {
+      setError(mensajeError(err));
+    } finally {
+      setGenerando(false);
+    }
+  }
+
+  // La transacción del mes actual ya se generó sola al crear la orden (ver guardar()) —
+  // este botón solo descarta el historial retroactivo de los meses anteriores.
+  function dejarSoloDesdeAhora() {
+    if (!avisoMesPasado) return;
+    setExito(`"${avisoMesPasado.nombre}" quedó activa solo desde este mes en adelante.`);
+    setAvisoMesPasado(null);
   }
 
   async function alternarActiva(o: OrdenPermanente) {
@@ -296,6 +324,30 @@ export default function OrdenesPermanentes() {
           </tbody>
         </table>
       </div>
+
+      {avisoMesPasado && (
+        <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && dejarSoloDesdeAhora()}>
+          <div className="card" style={{ maxWidth: 460, margin: 0 }}>
+            <h3 style={{ marginTop: 0, color: "var(--color-navy)" }}>Esta orden inicia en un mes ya pasado</h3>
+            <p className="text-muted">
+              "{avisoMesPasado.nombre}" inicia en{" "}
+              <strong>
+                {nombreMes(avisoMesPasado.inicio.getMonth() + 1)} {avisoMesPasado.inicio.getFullYear()}
+              </strong>
+              . Ya se generó su transacción de este mes. ¿Quieres completar también las transacciones pendientes de los meses anteriores desde
+              esa fecha, o dejarlo solo desde ahora?
+            </p>
+            <div className="gap-sm" style={{ justifyContent: "flex-end", marginTop: 16 }}>
+              <button className="btn btn-secondary" onClick={dejarSoloDesdeAhora} disabled={generando}>
+                Dejarlo solo desde ahora
+              </button>
+              <button className="btn btn-primary" onClick={generarDesdeInicioOriginal} disabled={generando}>
+                Completar desde {nombreMes(avisoMesPasado.inicio.getMonth() + 1)} {avisoMesPasado.inicio.getFullYear()}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
