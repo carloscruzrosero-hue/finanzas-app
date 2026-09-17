@@ -37,22 +37,34 @@ export default function Dashboard() {
           <p className="label">Saldo total</p>
           <p className="valor">{formatoMoneda(datos.saldoTotal)}</p>
         </div>
-        <div className="stat-card positivo">
+        <Link
+          to={`/transacciones?tipo=INGRESO&mes=${datos.periodo.mes}&anio=${datos.periodo.anio}`}
+          className="stat-card positivo"
+          style={{ display: "block", textDecoration: "none" }}
+        >
           <p className="label">Ingresos del mes</p>
           <p className="valor">{formatoMoneda(datos.ingresosMes)}</p>
-        </div>
-        <div className="stat-card negativo">
+        </Link>
+        <Link
+          to={`/transacciones?tipo=GASTO&mes=${datos.periodo.mes}&anio=${datos.periodo.anio}`}
+          className="stat-card negativo"
+          style={{ display: "block", textDecoration: "none" }}
+        >
           <p className="label">Gastos del mes</p>
           <p className="valor">{formatoMoneda(datos.gastosMes)}</p>
-        </div>
+        </Link>
         <div className={`stat-card ${datos.saldoNetoMes >= 0 ? "positivo" : "negativo"}`}>
           <p className="label">Saldo neto del mes</p>
           <p className="valor">{formatoMoneda(datos.saldoNetoMes)}</p>
         </div>
-        <div className="stat-card">
+        <Link
+          to={`/transacciones?estado=PENDIENTE&mes=${datos.periodo.mes}&anio=${datos.periodo.anio}`}
+          className="stat-card"
+          style={{ display: "block", textDecoration: "none" }}
+        >
           <p className="label">Movimientos pendientes</p>
           <p className="valor">{datos.pendientesMes}</p>
-        </div>
+        </Link>
       </div>
 
       <div className="card">
