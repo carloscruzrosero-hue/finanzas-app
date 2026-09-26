@@ -11,7 +11,6 @@ import transaccionesProgramadasRoutes from "./routes/transaccionesProgramadas.ro
 import reportesRoutes from "./routes/reportes.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import { iniciarEjecucionTransaccionesProgramadas } from "./jobs/ejecutarTransaccionesProgramadas";
-import { iniciarKeepAlive } from "./jobs/keepAlive";
 
 const app = express();
 
@@ -38,5 +37,4 @@ const PORT = Number(process.env.PORT) || 4000;
 app.listen(PORT, () => {
   console.log(`API de finanzas-app escuchando en http://localhost:${PORT}`);
   iniciarEjecucionTransaccionesProgramadas();
-  iniciarKeepAlive();
 });
