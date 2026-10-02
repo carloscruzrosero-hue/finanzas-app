@@ -146,12 +146,16 @@ export default function Deudas() {
     setError("");
     setExito("");
     if (!cuotaPagoId) return;
+    if (!formPago.cuentaId || !formPago.categoriaId) {
+      setError("Selecciona cuenta y categoría — todo pago se refleja como ingreso real.");
+      return;
+    }
     try {
       await api.post(`/deudas/${deudaId}/cuotas/${cuotaPagoId}/pagos`, {
         monto: Number(formPago.monto),
         fecha: fechaInputAIso(formPago.fecha),
-        cuentaId: formPago.cuentaId ? Number(formPago.cuentaId) : undefined,
-        categoriaId: formPago.categoriaId ? Number(formPago.categoriaId) : undefined,
+        cuentaId: Number(formPago.cuentaId),
+        categoriaId: Number(formPago.categoriaId),
         observaciones: formPago.observaciones || undefined,
       });
       setExito("Pago registrado.");
@@ -387,12 +391,13 @@ export default function Deudas() {
                                               />
                                             </div>
                                             <div className="field">
-                                              <label>Cuenta (opcional)</label>
+                                              <label>Cuenta</label>
                                               <select
+                                                required
                                                 value={formPago.cuentaId}
                                                 onChange={(e) => setFormPago({ ...formPago, cuentaId: e.target.value })}
                                               >
-                                                <option value="">No reflejar en ninguna cuenta</option>
+                                                <option value="">Selecciona...</option>
                                                 {cuentas.map((cta) => (
                                                   <option key={cta.id} value={cta.id}>
                                                     {cta.nombre}
@@ -400,17 +405,15 @@ export default function Deudas() {
                                                 ))}
                                               </select>
                                             </div>
-                                            {formPago.cuentaId && (
-                                              <div className="field">
-                                                <label>Categoría</label>
-                                                <SelectorCategoria
-                                                  categorias={categorias}
-                                                  tipo="INGRESO"
-                                                  valor={formPago.categoriaId}
-                                                  onSeleccionar={(cat) => setFormPago({ ...formPago, categoriaId: String(cat.id) })}
-                                                />
-                                              </div>
-                                            )}
+                                            <div className="field">
+                                              <label>Categoría</label>
+                                              <SelectorCategoria
+                                                categorias={categorias}
+                                                tipo="INGRESO"
+                                                valor={formPago.categoriaId}
+                                                onSeleccionar={(cat) => setFormPago({ ...formPago, categoriaId: String(cat.id) })}
+                                              />
+                                            </div>
                                             <div className="field">
                                               <label>Observaciones (opcional)</label>
                                               <input
@@ -427,11 +430,9 @@ export default function Deudas() {
                                               </button>
                                             </div>
                                           </div>
-                                          {formPago.cuentaId && (
-                                            <p className="text-muted" style={{ marginBottom: 0 }}>
-                                              Este pago se reflejará como un ingreso confirmado en la cuenta seleccionada.
-                                            </p>
-                                          )}
+                                          <p className="text-muted" style={{ marginBottom: 0 }}>
+                                            Este pago se reflejará como un ingreso confirmado en la cuenta seleccionada.
+                                          </p>
                                         </form>
                                       </td>
                                     </tr>

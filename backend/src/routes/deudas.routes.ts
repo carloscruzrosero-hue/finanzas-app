@@ -176,25 +176,26 @@ router.delete("/:id", async (req, res, next) => {
   }
 });
 
-const registrarPagoSchema = z
-  .object({
-    monto: z.number().positive(),
-    fecha: z.coerce.date().optional(),
-    cuentaId: z.number().int().optional(),
-    categoriaId: z.number().int().optional(),
-    observaciones: z.string().optional(),
-  })
-  .refine((d) => !d.cuentaId || d.categoriaId, {
-    message: "Para reflejar el pago en una cuenta también debes indicar una categoría.",
-    path: ["categoriaId"],
-  });
+// Cuenta y categoría son obligatorias: un pago de deuda siempre debe reflejarse como un
+// ingreso real (así se decidió para todo este módulo, ver conAgregados/Transaccion más
+// abajo). Antes eran opcionales ("no reflejar en ninguna cuenta"), lo que permitía
+// registrar un pago que marcaba la cuota como pagada pero no generaba ninguna
+// Transaccion — el dinero "desaparecía": no sumaba en Ingresos del mes ni en ninguna
+// cuenta, sin ningún aviso de que eso estaba pasando.
+const registrarPagoSchema = z.object({
+  monto: z.number().positive(),
+  fecha: z.coerce.date().optional(),
+  cuentaId: z.number().int(),
+  categoriaId: z.number().int(),
+  observaciones: z.string().optional(),
+});
 
 // Registra un pago/abono contra una cuota. Si el monto supera lo que falta de esa
 // cuota, el excedente se aplica en cascada a la(s) siguiente(s) cuota(s) pendientes —
 // así un abono extra adelanta cuotas futuras, sin necesitar un concepto aparte de
-// "abono libre". Si viene cuenta+categoría, se crea UNA sola Transaccion (por el monto
-// total del pago, aunque internamente se haya repartido en varias cuotas) y se ajusta
-// el saldo real de esa cuenta, igual que cualquier otro ingreso de la app.
+// "abono libre". Siempre crea UNA sola Transaccion (por el monto total del pago, aunque
+// internamente se haya repartido en varias cuotas) y ajusta el saldo real de esa cuenta,
+// igual que cualquier otro ingreso de la app.
 router.post("/:id/cuotas/:cuotaId/pagos", async (req, res, next) => {
   try {
     const deudaId = Number(req.params.id);
@@ -248,7 +249,7 @@ router.post("/:id/cuotas/:cuotaId/pagos", async (req, res, next) => {
       // Una sola Transaccion por el total efectivamente aplicado (puede ser menor al
       // monto enviado si ya no quedaban más cuotas pendientes donde aplicar el resto).
       const totalAplicado = pagosCreados.reduce((acc, p) => acc + p.monto, 0);
-      if (data.cuentaId && data.categoriaId && totalAplicado > 0) {
+      if (totalAplicado > 0) {
         const { mes, anio } = mesAnioDe(fecha);
         const transaccion = await tx.transaccion.create({
           data: {
