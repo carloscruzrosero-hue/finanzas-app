@@ -194,7 +194,7 @@ export default function OrdenesPermanentes() {
         </div>
       </div>
 
-      <p className="text-muted" style={{ marginTop: -12, marginBottom: 16 }}>
+      <p className="text-muted" style={{ marginBottom: 16 }}>
         Representan pagos o cobros fijos recurrentes (arriendo, suscripciones, nómina). Usa "Generar movimientos del mes" para replicarlas como
         transacciones ya confirmadas del periodo actual — es seguro repetirlo, no duplica lo ya generado. Si alguna no debía generarse, elimínala
         desde Transacciones (revierte el saldo automáticamente).

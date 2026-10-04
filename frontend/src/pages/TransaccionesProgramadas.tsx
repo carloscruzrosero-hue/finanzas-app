@@ -99,7 +99,7 @@ export default function TransaccionesProgramadas() {
           {mostrarForm ? "Cancelar" : "+ Nueva programada"}
         </button>
       </div>
-      <p className="text-muted" style={{ marginTop: -12, marginBottom: 16 }}>
+      <p className="text-muted" style={{ marginBottom: 16 }}>
         Movimientos puntuales a futuro que aún no han ocurrido. Al ejecutarlos se convierten en una transacción confirmada real.
       </p>
 

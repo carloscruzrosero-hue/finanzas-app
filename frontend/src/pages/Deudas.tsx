@@ -187,7 +187,7 @@ export default function Deudas() {
         </button>
       </div>
 
-      <p className="text-muted" style={{ marginTop: -12, marginBottom: 16 }}>
+      <p className="text-muted" style={{ marginBottom: 16 }}>
         Valores que te deben pagar a ti. Registra la periodicidad de pago y ve dando de baja cada cuota a medida que te pagan — si te abonan más
         de lo que corresponde a una cuota, el excedente se aplica automáticamente a la(s) siguiente(s).
       </p>
