@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { api, mensajeError } from "../services/api";
 import { Alerta } from "../components/Alerta";
@@ -42,6 +42,59 @@ function badgeDeuda(d: Deuda) {
   return <span className="badge badge-amber">Al día</span>;
 }
 
+type FiltroDeudas = "PENDIENTES" | "TODAS";
+type ColumnaOrden = "deudor" | "concepto" | "cuotas" | "saldoPendiente" | "proximoVencimiento" | "estado";
+type DireccionOrden = "asc" | "desc";
+
+// Orden por defecto: la deuda más vencida primero (su próxima cuota impaga es la más antigua).
+const ORDEN_POR_DEFECTO: { columna: ColumnaOrden; direccion: DireccionOrden } = { columna: "proximoVencimiento", direccion: "asc" };
+
+// Una deuda "cerrada" (pagada o cancelada) ya no requiere acción: siempre va al final de la
+// lista, sin importar la columna por la que se ordene, y se oculta con el filtro "Pendientes".
+function estaCerrada(d: Deuda): boolean {
+  return d.estado === "PAGADA" || d.estado === "CANCELADA";
+}
+
+// Peso del estado para ordenar por esa columna: lo más urgente primero (vencida → al día →
+// pagada → cancelada).
+function pesoEstado(d: Deuda): number {
+  if (d.estado === "CANCELADA") return 3;
+  if (d.estado === "PAGADA") return 2;
+  return d.tieneVencidas ? 0 : 1;
+}
+
+function compararPorColumna(a: Deuda, b: Deuda, columna: ColumnaOrden): number {
+  switch (columna) {
+    case "deudor":
+      return a.deudor.localeCompare(b.deudor, "es", { sensitivity: "base" });
+    case "concepto":
+      return a.concepto.localeCompare(b.concepto, "es", { sensitivity: "base" });
+    case "cuotas":
+      return a.totalCuotas - a.cuotasPagadas - (b.totalCuotas - b.cuotasPagadas);
+    case "saldoPendiente":
+      return a.saldoPendiente - b.saldoPendiente;
+    case "estado":
+      return pesoEstado(a) - pesoEstado(b);
+    case "proximoVencimiento":
+      return new Date(a.proximoVencimiento!).getTime() - new Date(b.proximoVencimiento!).getTime();
+  }
+}
+
+/** Ordena las deudas dejando siempre las cerradas al final; dentro de cada grupo aplica la columna y dirección elegidas. */
+function ordenarDeudas(deudas: Deuda[], columna: ColumnaOrden, direccion: DireccionOrden): Deuda[] {
+  const signo = direccion === "asc" ? 1 : -1;
+  return [...deudas].sort((a, b) => {
+    const grupo = Number(estaCerrada(a)) - Number(estaCerrada(b));
+    if (grupo !== 0) return grupo;
+    // Sin próximo vencimiento (nada por cobrar) va al final dentro de su grupo, en ambas direcciones.
+    if (columna === "proximoVencimiento" && !a.proximoVencimiento !== !b.proximoVencimiento) {
+      return a.proximoVencimiento ? -1 : 1;
+    }
+    if (columna === "proximoVencimiento" && !a.proximoVencimiento) return 0;
+    return signo * compararPorColumna(a, b, columna);
+  });
+}
+
 export default function Deudas() {
   const [deudas, setDeudas] = useState<Deuda[]>([]);
   const [categorias, setCategorias] = useState<CategoriaGasto[]>([]);
@@ -55,6 +108,36 @@ export default function Deudas() {
   const [deudaDetalle, setDeudaDetalle] = useState<Deuda | null>(null);
   const [cuotaPagoId, setCuotaPagoId] = useState<number | null>(null);
   const [formPago, setFormPago] = useState(FORM_PAGO_VACIO);
+
+  const [filtro, setFiltro] = useState<FiltroDeudas>("PENDIENTES");
+  const [orden, setOrden] = useState(ORDEN_POR_DEFECTO);
+
+  const deudasVisibles = useMemo(() => {
+    const filtradas = filtro === "PENDIENTES" ? deudas.filter((d) => !estaCerrada(d)) : deudas;
+    return ordenarDeudas(filtradas, orden.columna, orden.direccion);
+  }, [deudas, filtro, orden]);
+  const totalCerradas = deudas.filter(estaCerrada).length;
+
+  // Un clic en el mismo encabezado invierte la dirección; en uno nuevo empieza ascendente.
+  function cambiarOrden(columna: ColumnaOrden) {
+    setOrden((actual) =>
+      actual.columna === columna ? { columna, direccion: actual.direccion === "asc" ? "desc" : "asc" } : { columna, direccion: "asc" }
+    );
+  }
+
+  function encabezadoOrdenable(columna: ColumnaOrden, texto: string) {
+    const activa = orden.columna === columna;
+    return (
+      <th aria-sort={activa ? (orden.direccion === "asc" ? "ascending" : "descending") : "none"}>
+        <button type="button" className="th-ordenable" onClick={() => cambiarOrden(columna)}>
+          {texto}
+          <span className={activa ? "" : "text-muted"} aria-hidden="true">
+            {activa ? (orden.direccion === "asc" ? "▲" : "▼") : "↕"}
+          </span>
+        </button>
+      </th>
+    );
+  }
 
   function cargar() {
     api
@@ -254,29 +337,48 @@ export default function Deudas() {
         </form>
       )}
 
+      <div className="gap-sm" role="group" aria-label="Filtrar deudas" style={{ marginBottom: 12, alignItems: "center" }}>
+        <button
+          type="button"
+          className={`btn ${filtro === "PENDIENTES" ? "btn-primary" : "btn-secondary"}`}
+          aria-pressed={filtro === "PENDIENTES"}
+          onClick={() => setFiltro("PENDIENTES")}
+        >
+          Solo pendientes
+        </button>
+        <button
+          type="button"
+          className={`btn ${filtro === "TODAS" ? "btn-primary" : "btn-secondary"}`}
+          aria-pressed={filtro === "TODAS"}
+          onClick={() => setFiltro("TODAS")}
+        >
+          Todas{totalCerradas > 0 ? ` (incluye ${totalCerradas} pagada${totalCerradas > 1 ? "s" : ""}/cancelada${totalCerradas > 1 ? "s" : ""})` : ""}
+        </button>
+      </div>
+
       <div className="card" style={{ padding: 0 }}>
         <table>
           <thead>
             <tr>
-              <th>Deudor</th>
-              <th>Concepto</th>
+              {encabezadoOrdenable("deudor", "Deudor")}
+              {encabezadoOrdenable("concepto", "Concepto")}
               <th>Periodicidad</th>
-              <th>Cuotas</th>
-              <th>Saldo pendiente</th>
-              <th>Próximo vencimiento</th>
-              <th>Estado</th>
+              {encabezadoOrdenable("cuotas", "Cuotas")}
+              {encabezadoOrdenable("saldoPendiente", "Saldo pendiente")}
+              {encabezadoOrdenable("proximoVencimiento", "Próximo vencimiento")}
+              {encabezadoOrdenable("estado", "Estado")}
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {deudas.length === 0 && (
+            {deudasVisibles.length === 0 && (
               <tr>
                 <td colSpan={8} className="text-muted" style={{ textAlign: "center", padding: 24 }}>
-                  No hay deudas registradas todavía.
+                  {deudas.length === 0 ? "No hay deudas registradas todavía." : "No hay deudas pendientes. 🎉"}
                 </td>
               </tr>
             )}
-            {deudas.map((d) => (
+            {deudasVisibles.map((d) => (
               <Fragment key={d.id}>
                 <tr>
                   <td>{d.deudor}</td>
