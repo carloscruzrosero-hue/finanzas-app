@@ -1,16 +1,32 @@
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Icono } from "./Iconos";
+import type { NombreIcono } from "./Iconos";
 
-const ITEMS = [
-  { to: "/", label: "Panel principal", end: true },
-  { to: "/transacciones", label: "Transacciones" },
-  { to: "/deudas", label: "Deudas pendientes" },
-  { to: "/ordenes-permanentes", label: "Órdenes permanentes" },
-  { to: "/transacciones-programadas", label: "Programadas" },
-  { to: "/reportes", label: "Reportes" },
-  { to: "/cuentas", label: "Cuentas" },
-  { to: "/categorias", label: "Categorías" },
+interface ItemNavegacion {
+  to: string;
+  label: string;
+  // Etiqueta corta para la barra inferior del móvil, donde el espacio es reducido.
+  corto: string;
+  icono: NombreIcono;
+  end?: boolean;
+}
+
+const ITEMS: ItemNavegacion[] = [
+  { to: "/", label: "Panel principal", corto: "Inicio", icono: "inicio", end: true },
+  { to: "/transacciones", label: "Transacciones", corto: "Movimientos", icono: "movimientos" },
+  { to: "/deudas", label: "Deudas pendientes", corto: "Deudas", icono: "deudas" },
+  { to: "/ordenes-permanentes", label: "Órdenes permanentes", corto: "Órdenes", icono: "ordenes" },
+  { to: "/transacciones-programadas", label: "Programadas", corto: "Programadas", icono: "programadas" },
+  { to: "/reportes", label: "Reportes", corto: "Reportes", icono: "reportes" },
+  { to: "/cuentas", label: "Cuentas", corto: "Cuentas", icono: "cuentas" },
+  { to: "/categorias", label: "Categorías", corto: "Categorías", icono: "categorias" },
 ];
+
+// En el móvil, la barra inferior muestra los destinos más usados; el resto vive en "Más".
+const RUTAS_BARRA_INFERIOR = ["/", "/transacciones", "/deudas", "/reportes"];
+const ITEMS_BARRA_INFERIOR = ITEMS.filter((i) => RUTAS_BARRA_INFERIOR.includes(i.to));
+const ITEMS_MAS = ITEMS.filter((i) => !RUTAS_BARRA_INFERIOR.includes(i.to));
 
 // Isotipo BONDIA en versión negativa (blanco + turquesa sobre azul marino) — recreado en
 // SVG a partir del manual de marca, ya que no se pudo extraer el artwork vectorial
@@ -34,15 +50,17 @@ function IsotipoBondia() {
 }
 
 export function Layout() {
-  const [menuAbierto, setMenuAbierto] = useState(false);
+  const { pathname } = useLocation();
+  // La hoja "Más" queda abierta solo en la ruta donde se abrió: cualquier navegación
+  // (un destino de la hoja o el botón atrás del teléfono) la cierra sola.
+  const [masAbiertoEn, setMasAbiertoEn] = useState<string | null>(null);
+  const masAbierto = masAbiertoEn === pathname;
+  const setMasAbierto = (abrir: boolean) => setMasAbiertoEn(abrir ? pathname : null);
+  const enSeccionDeMas = ITEMS_MAS.some((i) => pathname.startsWith(i.to));
 
   return (
     <div className="app-shell">
-      <button className="btn-menu-movil" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú">
-        ☰
-      </button>
-      {menuAbierto && <div className="overlay-movil" onClick={() => setMenuAbierto(false)} />}
-      <aside className={`sidebar ${menuAbierto ? "abierto" : ""}`}>
+      <aside className="sidebar">
         <div className="sidebar-header">
           <div className="brand">
             <IsotipoBondia />
@@ -51,27 +69,68 @@ export function Layout() {
               <p className="brand-subtitle">Finanzas Personales</p>
             </div>
           </div>
-          <button className="btn-cerrar-movil" onClick={() => setMenuAbierto(false)} aria-label="Cerrar menú">
-            ✕
-          </button>
         </div>
         <nav>
           {ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => (isActive ? "active" : "")}
-              onClick={() => setMenuAbierto(false)}
-            >
+            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => (isActive ? "active" : "")}>
+              <Icono nombre={item.icono} tamano={18} />
               {item.label}
             </NavLink>
           ))}
         </nav>
       </aside>
+
+      <header className="topbar-movil">
+        <IsotipoBondia />
+        <span className="topbar-nombre">BONDIA</span>
+      </header>
+
       <main className="main-content">
         <Outlet />
       </main>
+
+      <nav className="bottom-nav" aria-label="Navegación principal">
+        {ITEMS_BARRA_INFERIOR.map((item) => (
+          <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `bottom-nav-item ${isActive ? "active" : ""}`}>
+            <Icono nombre={item.icono} tamano={22} />
+            <span>{item.corto}</span>
+          </NavLink>
+        ))}
+        <button
+          type="button"
+          className={`bottom-nav-item ${enSeccionDeMas || masAbierto ? "active" : ""}`}
+          onClick={() => setMasAbierto(!masAbierto)}
+          aria-expanded={masAbierto}
+          aria-controls="hoja-mas"
+        >
+          <Icono nombre="mas" tamano={22} />
+          <span>Más</span>
+        </button>
+      </nav>
+
+      {masAbierto && (
+        <>
+          <div className="overlay-movil" onClick={() => setMasAbierto(false)} />
+          <div id="hoja-mas" className="hoja-mas" role="dialog" aria-label="Más secciones">
+            <div className="hoja-mas-header">
+              <span>Más secciones</span>
+              <button type="button" className="hoja-mas-cerrar" onClick={() => setMasAbierto(false)} aria-label="Cerrar">
+                <Icono nombre="cerrar" tamano={20} />
+              </button>
+            </div>
+            <div className="hoja-mas-grid">
+              {ITEMS_MAS.map((item) => (
+                <NavLink key={item.to} to={item.to} className={({ isActive }) => `hoja-mas-item ${isActive ? "active" : ""}`}>
+                  <span className="hoja-mas-icono">
+                    <Icono nombre={item.icono} tamano={22} />
+                  </span>
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

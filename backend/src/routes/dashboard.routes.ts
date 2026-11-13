@@ -4,6 +4,33 @@ import { mesActual } from "../utils/fechas";
 
 const router = Router();
 
+interface TotalesPeriodo {
+  ingresos: number;
+  gastos: number;
+  neto: number;
+}
+
+interface FilaTotales {
+  anio: number;
+  mes: number;
+  tipo: string;
+  _sum: { valor: number | null };
+}
+
+const redondear = (n: number) => Math.round(n * 100) / 100;
+
+/** Suma ingresos y gastos confirmados de las filas agrupadas que cumplen el filtro. */
+function totalesDe(filas: FilaTotales[], filtro: (f: FilaTotales) => boolean): TotalesPeriodo {
+  let ingresos = 0;
+  let gastos = 0;
+  for (const f of filas) {
+    if (!filtro(f)) continue;
+    if (f.tipo === "INGRESO") ingresos += f._sum.valor ?? 0;
+    else if (f.tipo === "GASTO") gastos += f._sum.valor ?? 0;
+  }
+  return { ingresos: redondear(ingresos), gastos: redondear(gastos), neto: redondear(ingresos - gastos) };
+}
+
 router.get("/", async (_req, res, next) => {
   try {
     const { mes, anio } = mesActual();
@@ -11,7 +38,7 @@ router.get("/", async (_req, res, next) => {
     const inicioPeriodo = new Date(anio, mes - 1, 1);
     const finPeriodo = new Date(anio, mes, 0, 23, 59, 59);
 
-    const [cuentas, transaccionesMes, proximasProgramadas, ordenesVigentesMes, cuotasVencidas] = await Promise.all([
+    const [cuentas, transaccionesMes, proximasProgramadas, ordenesVigentesMes, cuotasVencidas, totalesPorMes] = await Promise.all([
       prisma.cuenta.findMany(),
       prisma.transaccion.findMany({ where: { mes, anio, estado: "CONFIRMADA" } }),
       prisma.transaccionProgramada.findMany({
@@ -36,7 +63,24 @@ router.get("/", async (_req, res, next) => {
         include: { deuda: { select: { id: true, deudor: true, concepto: true } } },
         orderBy: { fechaVencimiento: "asc" },
       }),
+      // Totales confirmados por mes y tipo, en una sola consulta agrupada: alimenta las
+      // comparaciones (mes anterior, mismo mes del año pasado) y los acumulados.
+      prisma.transaccion.groupBy({
+        by: ["anio", "mes", "tipo"],
+        where: { estado: "CONFIRMADA" },
+        _sum: { valor: true },
+      }),
     ]);
+
+    const mesAnterior = mes === 1 ? { mes: 12, anio: anio - 1 } : { mes: mes - 1, anio };
+    const comparativos = {
+      mesAnterior: { ...mesAnterior, ...totalesDe(totalesPorMes, (f) => f.anio === mesAnterior.anio && f.mes === mesAnterior.mes) },
+      mismoMesAnioAnterior: { mes, anio: anio - 1, ...totalesDe(totalesPorMes, (f) => f.anio === anio - 1 && f.mes === mes) },
+      acumuladoAnio: { anio, ...totalesDe(totalesPorMes, (f) => f.anio === anio && f.mes <= mes) },
+      // Hasta el mes en curso, igual que el acumulado del año: no suma movimientos ya
+      // registrados para meses futuros (ej. órdenes permanentes generadas por adelantado).
+      historico: totalesDe(totalesPorMes, (f) => f.anio < anio || (f.anio === anio && f.mes <= mes)),
+    };
 
     const saldoTotal = cuentas.reduce((acc, c) => acc + c.saldoActual, 0);
     const ingresosMes = transaccionesMes.filter((t) => t.tipo === "INGRESO").reduce((acc, t) => acc + t.valor, 0);
@@ -70,6 +114,7 @@ router.get("/", async (_req, res, next) => {
       gastosMes,
       saldoNetoMes: ingresosMes - gastosMes,
       pendientesMes,
+      comparativos,
       resumenOrdenesMes,
       proximasTransaccionesProgramadas: proximasProgramadas,
       alertasDeudas: cuotasVencidas.map((c) => ({

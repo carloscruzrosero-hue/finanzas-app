@@ -166,6 +166,19 @@ export interface ResumenOrdenMes {
   generada: boolean;
 }
 
+export interface TotalesPeriodo {
+  ingresos: number;
+  gastos: number;
+  neto: number;
+}
+
+export interface ComparativosDashboard {
+  mesAnterior: TotalesPeriodo & { mes: number; anio: number };
+  mismoMesAnioAnterior: TotalesPeriodo & { mes: number; anio: number };
+  acumuladoAnio: TotalesPeriodo & { anio: number };
+  historico: TotalesPeriodo;
+}
+
 export interface DashboardData {
   periodo: { mes: number; anio: number };
   saldoTotal: number;
@@ -173,6 +186,7 @@ export interface DashboardData {
   gastosMes: number;
   saldoNetoMes: number;
   pendientesMes: number;
+  comparativos: ComparativosDashboard;
   resumenOrdenesMes: ResumenOrdenMes[];
   proximasTransaccionesProgramadas: TransaccionProgramada[];
   alertasDeudas: AlertaDeuda[];

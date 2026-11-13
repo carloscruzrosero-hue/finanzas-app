@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 import { api, mensajeError } from "../services/api";
 import { Alerta } from "../components/Alerta";
 import { GraficoEvolutivo } from "../components/GraficoEvolutivo";
-import type { DashboardData, ResumenMensual } from "../types";
+import { Icono } from "../components/Iconos";
+import type { NombreIcono } from "../components/Iconos";
+import type { DashboardData, ResumenMensual, TotalesPeriodo } from "../types";
 import { formatoFecha, formatoMoneda, nombreMes } from "../utils/formato";
 
 export default function Dashboard() {
@@ -25,6 +27,7 @@ export default function Dashboard() {
 
   if (error) return <Alerta tipo="error" mensaje={error} />;
   if (!datos) return <p className="text-muted">Cargando...</p>;
+  const c = datos.comparativos;
 
   return (
     <div>
@@ -34,7 +37,10 @@ export default function Dashboard() {
 
       <div className="stat-grid">
         <div className="stat-card">
-          <p className="label">Saldo total</p>
+          <p className="label">
+            <span className="stat-icono"><Icono nombre="cuentas" tamano={16} /></span>
+            Saldo total
+          </p>
           <p className="valor">{formatoMoneda(datos.saldoTotal)}</p>
         </div>
         <Link
@@ -42,34 +48,82 @@ export default function Dashboard() {
           className="stat-card positivo"
           style={{ display: "block", textDecoration: "none" }}
         >
-          <p className="label">Ingresos del mes</p>
+          <p className="label">
+            <span className="stat-icono stat-icono-verde"><Icono nombre="ingreso" tamano={16} /></span>
+            Ingresos del mes
+          </p>
           <p className="valor">{formatoMoneda(datos.ingresosMes)}</p>
+          <Variacion actual={datos.ingresosMes} sinDatos={sinMovimientos(c.mesAnterior)} anterior={c.mesAnterior.ingresos} etiqueta={mesCorto(c.mesAnterior.mes)} />
+          <Variacion actual={datos.ingresosMes} sinDatos={sinMovimientos(c.mismoMesAnioAnterior)} anterior={c.mismoMesAnioAnterior.ingresos} etiqueta={`${mesCorto(c.mismoMesAnioAnterior.mes)} ${c.mismoMesAnioAnterior.anio}`} />
         </Link>
         <Link
           to={`/transacciones?tipo=GASTO&mes=${datos.periodo.mes}&anio=${datos.periodo.anio}`}
           className="stat-card negativo"
           style={{ display: "block", textDecoration: "none" }}
         >
-          <p className="label">Gastos del mes</p>
+          <p className="label">
+            <span className="stat-icono stat-icono-rojo"><Icono nombre="gasto" tamano={16} /></span>
+            Gastos del mes
+          </p>
           <p className="valor">{formatoMoneda(datos.gastosMes)}</p>
+          <Variacion actual={datos.gastosMes} sinDatos={sinMovimientos(c.mesAnterior)} anterior={c.mesAnterior.gastos} etiqueta={mesCorto(c.mesAnterior.mes)} subirEsMalo />
+          <Variacion
+            actual={datos.gastosMes}
+            sinDatos={sinMovimientos(c.mismoMesAnioAnterior)}
+            anterior={c.mismoMesAnioAnterior.gastos}
+            etiqueta={`${mesCorto(c.mismoMesAnioAnterior.mes)} ${c.mismoMesAnioAnterior.anio}`}
+            subirEsMalo
+          />
         </Link>
         <div className={`stat-card ${datos.saldoNetoMes >= 0 ? "positivo" : "negativo"}`}>
-          <p className="label">Saldo neto del mes</p>
+          <p className="label">
+            <span className={`stat-icono ${datos.saldoNetoMes >= 0 ? "stat-icono-verde" : "stat-icono-rojo"}`}>
+              <Icono nombre="neto" tamano={16} />
+            </span>
+            Saldo neto del mes
+          </p>
           <p className="valor">{formatoMoneda(datos.saldoNetoMes)}</p>
+          <Variacion actual={datos.saldoNetoMes} sinDatos={sinMovimientos(c.mesAnterior)} anterior={c.mesAnterior.neto} etiqueta={mesCorto(c.mesAnterior.mes)} enMonto />
+          <Variacion
+            actual={datos.saldoNetoMes}
+            sinDatos={sinMovimientos(c.mismoMesAnioAnterior)}
+            anterior={c.mismoMesAnioAnterior.neto}
+            etiqueta={`${mesCorto(c.mismoMesAnioAnterior.mes)} ${c.mismoMesAnioAnterior.anio}`}
+            enMonto
+          />
         </div>
         <Link
           to={`/transacciones?estado=PENDIENTE&mes=${datos.periodo.mes}&anio=${datos.periodo.anio}`}
           className="stat-card"
           style={{ display: "block", textDecoration: "none" }}
         >
-          <p className="label">Movimientos pendientes</p>
+          <p className="label">
+            <span className="stat-icono"><Icono nombre="pendiente" tamano={16} /></span>
+            Movimientos pendientes
+          </p>
           <p className="valor">{datos.pendientesMes}</p>
         </Link>
       </div>
 
+      <p className="nota-comparativos">
+        Variaciones contra el mes completo indicado. {nombreMes(datos.periodo.mes)} todavía está en curso, así que puede seguir cambiando.
+      </p>
+
+      <div className="card">
+        <h3 className="titulo-icono" style={{ marginTop: 0 }}>
+          <Icono nombre="neto" tamano={18} /> Cómo vamos
+        </h3>
+        <div className="resumen-acumulado">
+          <BloqueAcumulado icono="acumulado" titulo={`En lo que va de ${c.acumuladoAnio.anio}`} totales={c.acumuladoAnio} />
+          <BloqueAcumulado icono="historico" titulo="Histórico total" totales={c.historico} />
+        </div>
+      </div>
+
       <div className="card">
         <div className="flex-between">
-          <h3 style={{ margin: 0 }}>Evolución de los últimos meses</h3>
+          <h3 className="titulo-icono" style={{ margin: 0 }}>
+            <Icono nombre="reportes" tamano={18} /> Evolución de los últimos meses
+          </h3>
           <Link to="/reportes" className="btn btn-secondary">
             Ver reportes completos
           </Link>
@@ -78,7 +132,9 @@ export default function Dashboard() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Pagos atrasados</h3>
+        <h3 className="titulo-icono" style={{ marginTop: 0 }}>
+          <Icono nombre="alerta" tamano={18} /> Pagos atrasados
+        </h3>
         {datos.alertasDeudas.length === 0 ? (
           <p className="text-muted">No hay cuotas de deudas vencidas sin pagar. 🎉</p>
         ) : (
@@ -116,7 +172,9 @@ export default function Dashboard() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Órdenes permanentes del mes</h3>
+        <h3 className="titulo-icono" style={{ marginTop: 0 }}>
+          <Icono nombre="ordenes" tamano={18} /> Órdenes permanentes del mes
+        </h3>
         {datos.resumenOrdenesMes.length === 0 ? (
           <p className="text-muted">No hay órdenes permanentes vigentes este mes.</p>
         ) : (
@@ -175,6 +233,90 @@ export default function Dashboard() {
             </tbody>
           </table>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Un periodo sin ingresos ni gastos confirmados no es comparable (no hay registros, no es $0 real). */
+function sinMovimientos(t: TotalesPeriodo): boolean {
+  return t.ingresos === 0 && t.gastos === 0;
+}
+
+function mesCorto(mes: number): string {
+  return nombreMes(mes).slice(0, 3).toLowerCase() + ".";
+}
+
+/**
+ * Línea pequeña de variación contra un periodo anterior. En porcentaje por defecto; `enMonto`
+ * la muestra como diferencia en dinero (para el neto, donde un % sobre un valor negativo
+ * no tiene sentido). `subirEsMalo` invierte el color (para gastos, subir es rojo).
+ */
+function Variacion({
+  actual,
+  anterior,
+  etiqueta,
+  subirEsMalo = false,
+  enMonto = false,
+  sinDatos = false,
+}: {
+  actual: number;
+  anterior: number;
+  sinDatos?: boolean;
+  etiqueta: string;
+  subirEsMalo?: boolean;
+  enMonto?: boolean;
+}) {
+  const diferencia = actual - anterior;
+  const titulo = `${etiqueta}: ${formatoMoneda(anterior)}`;
+
+  if (sinDatos || (!enMonto && anterior === 0)) {
+    return (
+      <p className="variacion neutra" title={titulo}>
+        Sin datos de {etiqueta}
+      </p>
+    );
+  }
+  if (Math.abs(diferencia) < 0.005) {
+    return (
+      <p className="variacion neutra" title={titulo}>
+        = Igual que {etiqueta}
+      </p>
+    );
+  }
+
+  const sube = diferencia > 0;
+  const esBueno = subirEsMalo ? !sube : sube;
+  const texto = enMonto
+    ? `${sube ? "+" : "−"}${formatoMoneda(Math.abs(diferencia))}`
+    : `${Math.round((Math.abs(diferencia) / Math.abs(anterior)) * 100)}%`;
+
+  return (
+    <p className={`variacion ${esBueno ? "buena" : "mala"}`} title={titulo}>
+      <Icono nombre={sube ? "subida" : "bajada"} tamano={13} />
+      {texto} vs {etiqueta}
+    </p>
+  );
+}
+
+function BloqueAcumulado({ icono, titulo, totales }: { icono: NombreIcono; titulo: string; totales: TotalesPeriodo }) {
+  return (
+    <div className="bloque-acumulado">
+      <p className="bloque-titulo">
+        <Icono nombre={icono} tamano={16} />
+        {titulo}
+      </p>
+      <div className="bloque-fila">
+        <span>Ingresos</span>
+        <strong className="texto-verde">{formatoMoneda(totales.ingresos)}</strong>
+      </div>
+      <div className="bloque-fila">
+        <span>Gastos</span>
+        <strong className="texto-rojo">{formatoMoneda(totales.gastos)}</strong>
+      </div>
+      <div className="bloque-fila bloque-total">
+        <span>Neto</span>
+        <strong className={totales.neto >= 0 ? "texto-verde" : "texto-rojo"}>{formatoMoneda(totales.neto)}</strong>
       </div>
     </div>
   );
